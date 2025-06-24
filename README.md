@@ -1,3 +1,15 @@
+# THE BEST VOLUNTEER APP ON THIS PLANET MADE WITHOUT CHATGPT OR ANY AI WHATSOEVER
+
+Frontend stack: Typescript, React, Tailwind CSS, shadcn/ui
+Backend stack: Python, Flask, PostgreSQL
+
+## Setup
+1. Clone the repo
+2. `cd frontend && npm install`
+
+## Scripts
+- `npm run dev` for frontend
+
 ## How to Add `shadcn/ui` Components
 
 Make sure to navigate to your frontend directory in the CLI first

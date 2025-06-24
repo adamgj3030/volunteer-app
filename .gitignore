@@ -1,0 +1,55 @@
+# === Node (frontend) ===
+node_modules/
+dist/
+.build/
+.next/
+out/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.vite/
+pnpm-lock.yaml
+yarn.lock
+
+# === Vite / React / Tailwind ===
+*.log
+*.DS_Store
+*.swp
+*.swo
+
+# === shadcn/ui custom components ===
+src/components/ui/**/index.tsx
+
+# === Python (backend) ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+*.pytest_cache/
+*.coverage
+.pytest_cache/
+env/
+venv/
+ENV/
+env.bak/
+*.sqlite3
+instance/
+
+# === Flask ===
+*.db
+*.log
+*.pem
+.env
+
+# === IDEs and OS files ===
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# === GitHub Actions secrets ===
+secrets.*
