@@ -31,9 +31,11 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-white p-4">
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow">
-        <h1 className="text-2xl font-semibold text-center mb-6">Create an Account</h1>
+        <h1 className="text-2xl font-semibold text-center text-black mb-6">
+          Create an Account
+        </h1>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             
@@ -50,21 +52,22 @@ export default function RegisterPage() {
               }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel className="text-black">Email</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
                       placeholder="Email"
                       className="
-                        border-gray-300
-                        placeholder-gray-400
-                        focus:border-[#2FBF71]
-                        focus:ring-2 focus:ring-[#2FBF71]
-                        bg-white
+                        border-black
+                        placeholder-black placeholder-opacity-50
+                        focus:border-black focus:ring-2 focus:ring-black
+                        bg-white text-black
                       "
                     />
                   </FormControl>
-                  <FormDescription>Enter your email address</FormDescription>
+                  <FormDescription className="text-black">
+                    Enter your email address
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -80,22 +83,23 @@ export default function RegisterPage() {
               }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel className="text-black">Password</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
                       type="password"
                       placeholder="Password"
                       className="
-                        border-gray-300
-                        placeholder-gray-400
-                        focus:border-[#2FBF71]
-                        focus:ring-2 focus:ring-[#2FBF71]
-                        bg-white
+                        border-black
+                        placeholder-black placeholder-opacity-50
+                        focus:border-black focus:ring-2 focus:ring-black
+                        bg-white text-black
                       "
                     />
                   </FormControl>
-                  <FormDescription>Enter your password</FormDescription>
+                  <FormDescription className="text-black">
+                    Enter your password
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -104,13 +108,7 @@ export default function RegisterPage() {
             {/* Register Button */}
             <Button
               type="submit"
-              className="
-                w-full
-                bg-[#2FBF71]
-                hover:bg-[#27a669]
-                text-white
-                shadow-sm
-              "
+              className="w-full bg-black hover:bg-black text-white shadow-sm"
             >
               Register
             </Button>
