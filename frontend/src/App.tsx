@@ -1,45 +1,33 @@
-import { Toaster } from "@/components/ui/sonner"
-import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
+
+import {BrowserRouter as Router, Routes, Route} from 'react-router-dom';
+import Navbar from './components/Navbar.tsx'
+import AdminManage from './pages/AdminManage.tsx';
+import VolunteerLanding from './pages/UserLanding.tsx';
+import AdminLanding from './pages/AdminLanding.tsx';
+
+import { useState } from 'react'
+
+
+
+import reactLogo from './assets/react.svg'
+import viteLogo from '/vite.svg'
+import './App.css'
 
 function App() {
+
   return (
-    <div className="flex flex-col items-center justify-center h-screen gap-4">
-      <Toaster />
-      <Button
-        onClick={() =>
-          toast("New Event Assignment", {
-            description: "You have been assigned to 'Community Cleanup'.",
-            action: {
-              label: "Undo",
-              onClick: () => console.log("Undo"),
-            },
-          })
-        }
-      >
-        Show New Event Assignment
-      </Button>
-      <Button
-        variant="outline"
-        onClick={() =>
-          toast("Event Update", {
-            description: "The 'Community Cleanup' event has been rescheduled.",
-          })
-        }
-      >
-        Show Event Update
-      </Button>
-      <Button
-        variant="destructive"
-        onClick={() =>
-          toast("Event Reminder", {
-            description: "The 'Community Cleanup' event starts in 1 hour.",
-          })
-        }
-      >
-        Show Event Reminder
-      </Button>
-    </div>
+    <Router>
+      <Navbar />
+      <main className = "p-4">
+        <Routes>
+          <Route path="/"></Route>
+          <Route path="/volunteer" element={<VolunteerLanding/>}></Route>
+          <Route path="/register"></Route>
+          <Route path="/admin" element={<AdminLanding/>}></Route>
+          <Route path="/admin/manage" element={<AdminManage/>}></Route>
+        </Routes>
+      </main>
+    </Router>
   )
 }
 
