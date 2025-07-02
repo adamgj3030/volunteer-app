@@ -142,12 +142,12 @@ export function VolunteerHistory() {
 
   const getSortIcon = (key: SortableKeys) => {
     if (!sortConfig || sortConfig.key !== key) {
-      return <ArrowUpDown className="ml-2 h-4 w-4" />;
+      return <ArrowUpDown className="ml-2 h-4 w-4" aria-label="No sort applied" />;
     }
     if (sortConfig.direction === 'ascending') {
-      return <ArrowUpDown className="ml-2 h-4 w-4" />; // Icons can be improved
+      return <ArrowUp className="ml-2 h-4 w-4" aria-label="Sorted ascending" />;
     }
-    return <ArrowUpDown className="ml-2 h-4 w-4" />;
+    return <ArrowDown className="ml-2 h-4 w-4" aria-label="Sorted descending" />;
   };
 
   return (
