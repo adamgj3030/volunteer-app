@@ -231,7 +231,7 @@ export function VolunteerHistory() {
           </TableHeader>
           <TableBody>
             {filteredAndSortedData.map((item, index) => (
-              <TableRow key={`${item.email}-${index}`}>
+              <TableRow key={`${item.email}-${item.eventName}-${item.eventDate}`}>
                 <TableCell className="font-medium">{item.name}</TableCell>
                 <TableCell>{item.email}</TableCell>
                 <TableCell>{item.eventName}</TableCell>
