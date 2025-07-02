@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-export function TaskList() {
+export default function TaskList() {
   // TODO: fetch tasks with SWR or React Query
   const tasks = [
     { id: 1, title: "Set up DB", due: "2025-07-10" },

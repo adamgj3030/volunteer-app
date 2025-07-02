@@ -50,7 +50,7 @@ const SKILLS = [
   "Design"
 ];
 
-export function ProfileForm() {
+export default function ProfileForm() {
   const form = useForm<ProfileFormValues>({
     defaultValues: {
       fullName: "",

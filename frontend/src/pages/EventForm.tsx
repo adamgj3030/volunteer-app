@@ -44,7 +44,7 @@ const URGENCY_OPTIONS = [
   { value: "critical", label: "Critical" },
 ];
 
-export function EventForm() {
+export default function EventForm() {
   const form = useForm<EventFormValues>({
     defaultValues: {
       eventName: "",
