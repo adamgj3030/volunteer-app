@@ -30,6 +30,20 @@ type EventFormValues = {
   eventDate: Date | null;
 };
 
+const SKILLS = [
+  "Leadership",
+  "Communication",
+  "Organization",
+  "Technical",
+  "Fundraising",
+];
+const URGENCY_OPTIONS = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "critical", label: "Critical" },
+];
+
 export function EventForm() {
   const form = useForm<EventFormValues>({
     defaultValues: {
@@ -44,16 +58,20 @@ export function EventForm() {
 
   const onSubmit = (values: EventFormValues) => {
     console.log("Event submitted:", values);
+    // TODO: call your backend API
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* Event Name */}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* 1. Event Name */}
         <FormField
           control={form.control}
           name="eventName"
-          rules={{ required: "Event Name is required", maxLength: 100 }}
+          rules={{
+            required: "Event Name is required",
+            maxLength: { value: 100, message: "Max 100 characters" },
+          }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Event Name</FormLabel>
@@ -65,7 +83,7 @@ export function EventForm() {
           )}
         />
 
-        {/* Event Description */}
+        {/* 2. Description */}
         <FormField
           control={form.control}
           name="eventDescription"
@@ -81,7 +99,7 @@ export function EventForm() {
           )}
         />
 
-        {/* Location */}
+        {/* 3. Location */}
         <FormField
           control={form.control}
           name="location"
@@ -90,14 +108,17 @@ export function EventForm() {
             <FormItem>
               <FormLabel>Location</FormLabel>
               <FormControl>
-                <Textarea {...field} placeholder="123 Main St, City, State" />
+                <Textarea
+                  {...field}
+                  placeholder="123 Main St, City, State"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {/* Required Skills (multi-select) */}
+        {/* 4. Required Skills */}
         <FormField
           control={form.control}
           name="requiredSkills"
@@ -115,9 +136,11 @@ export function EventForm() {
                     <SelectValue placeholder="Choose skills..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="leadership">Leadership</SelectItem>
-                    <SelectItem value="communication">Communication</SelectItem>
-                    <SelectItem value="organization">Organization</SelectItem>
+                    {SKILLS.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </FormControl>
@@ -126,7 +149,7 @@ export function EventForm() {
           )}
         />
 
-        {/* Urgency */}
+        {/* 5. Urgency */}
         <FormField
           control={form.control}
           name="urgency"
@@ -143,10 +166,11 @@ export function EventForm() {
                     <SelectValue placeholder="Select urgency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
+                    {URGENCY_OPTIONS.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </FormControl>
@@ -155,7 +179,7 @@ export function EventForm() {
           )}
         />
 
-        {/* Event Date */}
+        {/* 6. Event Date */}
         <FormField
           control={form.control}
           name="eventDate"
