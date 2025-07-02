@@ -103,8 +103,8 @@ export function VolunteerHistory() {
 
     if (searchTerm) {
       data = data.filter((item) =>
-        Object.values(item).some((val) =>
-          String(val).toLowerCase().includes(searchTerm.toLowerCase())
+        ["name", "eventName", "location"].some((key) =>
+          item[key]?.toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
     }
