@@ -1,34 +1,45 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Toaster } from "@/components/ui/sonner"
+import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div className="flex flex-col items-center justify-center h-screen gap-4">
+      <Toaster />
+      <Button
+        onClick={() =>
+          toast("New Event Assignment", {
+            description: "You have been assigned to 'Community Cleanup'.",
+            action: {
+              label: "Undo",
+              onClick: () => console.log("Undo"),
+            },
+          })
+        }
+      >
+        Show New Event Assignment
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() =>
+          toast("Event Update", {
+            description: "The 'Community Cleanup' event has been rescheduled.",
+          })
+        }
+      >
+        Show Event Update
+      </Button>
+      <Button
+        variant="destructive"
+        onClick={() =>
+          toast("Event Reminder", {
+            description: "The 'Community Cleanup' event starts in 1 hour.",
+          })
+        }
+      >
+        Show Event Reminder
+      </Button>
+    </div>
   )
 }
 
