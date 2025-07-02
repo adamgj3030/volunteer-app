@@ -1,10 +1,9 @@
-
 import {BrowserRouter as Router, Routes, Route} from 'react-router-dom';
 import Navbar from './components/Navbar.tsx'
 import AdminManage from './pages/AdminManage.tsx';
 import VolunteerLanding from './pages/UserLanding.tsx';
 import AdminLanding from './pages/AdminLanding.tsx';
-
+import { VolunteerHistory } from "./pages/VolunteerHistory";
 import { useState } from 'react'
 
 
@@ -21,6 +20,7 @@ function App() {
       <main className = "p-4">
         <Routes>
           <Route path="/"></Route>
+          <Route path="/volunteer-history" element={<VolunteerHistory/>}></Route>
           <Route path="/volunteer" element={<VolunteerLanding/>}></Route>
           <Route path="/register"></Route>
           <Route path="/admin" element={<AdminLanding/>}></Route>
