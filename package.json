@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "react-hook-form": "^7.59.0"
+  },
+  "devDependencies": {
+    "@shadcn/ui": "^0.0.4",
+    "vite-tsconfig-paths": "^5.1.4"
+  }
+}
