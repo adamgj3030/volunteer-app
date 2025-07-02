@@ -1,3 +1,4 @@
+
 import {BrowserRouter as Router, Routes, Route} from 'react-router-dom';
 import Navbar from './components/Navbar.tsx'
 import AdminManage from './pages/AdminManage.tsx';
@@ -27,7 +28,6 @@ function App() {
         </Routes>
       </main>
     </Router>
-    
   )
 }
 
