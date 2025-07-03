@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 type ParticipationStatus = "Confirmed" | "Attended" | "Cancelled";
 type Urgency = "High" | "Medium" | "Low";
@@ -145,23 +145,23 @@ export default function VolunteerHistory() {
       return <ArrowUpDown className="ml-2 h-4 w-4" aria-label="No sort applied" />;
     }
     if (sortConfig.direction === 'ascending') {
-      return <ArrowUp className="ml-2 h-4 w-4" aria-label="Sorted ascending" />;
+      return <ArrowUp className="ml-2 h-4 w-4 text-[#84a98c]" aria-label="Sorted ascending" />;
     }
-    return <ArrowDown className="ml-2 h-4 w-4" aria-label="Sorted descending" />;
+    return <ArrowDown className="ml-2 h-4 w-4 text-[#84a98c]" aria-label="Sorted descending" />;
   };
 
   return (
     <div className="container max-w-screen-2xl mx-auto py-10">
-      <h1 className="text-3xl font-bold mb-6">Volunteer Participation History</h1>
+      <h1 className="text-3xl font-bold mb-6 text-[#354f52]">Volunteer Participation History</h1>
       <div className="flex items-center py-4 gap-4">
         <Input
           placeholder="Search..."
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          className="max-w-sm"
+          className="max-w-sm focus:ring-[#84a98c] focus:border-[#84a98c]"
         />
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ParticipationStatus | "all")}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px] focus:ring-[#84a98c] focus:border-[#84a98c]">
             <SelectValue placeholder="Filter by Status" />
           </SelectTrigger>
           <SelectContent>
@@ -172,7 +172,7 @@ export default function VolunteerHistory() {
           </SelectContent>
         </Select>
         <Select value={urgencyFilter} onValueChange={(value) => setUrgencyFilter(value as Urgency | "all")}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px] focus:ring-[#84a98c] focus:border-[#84a98c]">
             <SelectValue placeholder="Filter by Urgency" />
           </SelectTrigger>
           <SelectContent>
@@ -183,25 +183,25 @@ export default function VolunteerHistory() {
           </SelectContent>
         </Select>
       </div>
-      <div className="rounded-md border">
+      <div className="rounded-md border border-[#cad2c5]">
         <Table>
           <TableCaption>A list of volunteer participation history.</TableCaption>
           <TableHeader>
-            <TableRow>
+            <TableRow className="border-b border-[#cad2c5]">
               <TableHead>
-                <Button variant="ghost" onClick={() => requestSort("name")}>
+                <Button variant="ghost" onClick={() => requestSort("name")} className="hover:bg-[#e6eee8] hover:text-[#52796f]">
                   Volunteer Name
                   {getSortIcon("name")}
                 </Button>
               </TableHead>
               <TableHead>
-                 <Button variant="ghost" onClick={() => requestSort("email")}>
+                 <Button variant="ghost" onClick={() => requestSort("email")} className="hover:bg-[#e6eee8] hover:text-[#52796f]">
                   Email
                   {getSortIcon("email")}
                 </Button>
               </TableHead>
               <TableHead>
-                 <Button variant="ghost" onClick={() => requestSort("eventName")}>
+                 <Button variant="ghost" onClick={() => requestSort("eventName")} className="hover:bg-[#e6eee8] hover:text-[#52796f]">
                   Event Name
                   {getSortIcon("eventName")}
                 </Button>
@@ -210,19 +210,19 @@ export default function VolunteerHistory() {
               <TableHead>Location</TableHead>
               <TableHead>Required Skills</TableHead>
               <TableHead>
-                 <Button variant="ghost" onClick={() => requestSort("urgency")}>
+                 <Button variant="ghost" onClick={() => requestSort("urgency")} className="hover:bg-[#e6eee8] hover:text-[#52796f]">
                   Urgency
                   {getSortIcon("urgency")}
                 </Button>
               </TableHead>
               <TableHead>
-                 <Button variant="ghost" onClick={() => requestSort("eventDate")}>
+                 <Button variant="ghost" onClick={() => requestSort("eventDate")} className="hover:bg-[#e6eee8] hover:text-[#52796f]">
                   Event Date
                   {getSortIcon("eventDate")}
                 </Button>
               </TableHead>
               <TableHead>
-                 <Button variant="ghost" onClick={() => requestSort("status")}>
+                 <Button variant="ghost" onClick={() => requestSort("status")} className="hover:bg-[#e6eee8] hover:text-[#52796f]">
                   Status
                   {getSortIcon("status")}
                 </Button>
@@ -231,21 +231,30 @@ export default function VolunteerHistory() {
           </TableHeader>
           <TableBody>
             {filteredAndSortedData.map((item, index) => (
-              <TableRow key={`${item.email}-${item.eventName}-${item.eventDate}`}>
+              <TableRow key={`${item.email}-${item.eventName}-${item.eventDate}`} className="border-b border-[#f4f6f3] hover:bg-[#f4f6f3]">
                 <TableCell className="font-medium">{item.name}</TableCell>
                 <TableCell>{item.email}</TableCell>
-                <TableCell>{item.eventName}</TableCell>
+                <TableCell className="font-medium text-[#354f52]">{item.eventName}</TableCell>
                 <TableCell>{item.description}</TableCell>
                 <TableCell>{item.location}</TableCell>
                 <TableCell>{item.requiredSkills.join(", ")}</TableCell>
                 <TableCell>
-                  <Badge variant={item.urgency === "High" ? "destructive" : item.urgency === "Medium" ? "secondary" : "default"}>
+                  <Badge 
+                    variant={item.urgency === "High" ? "destructive" : item.urgency === "Medium" ? "secondary" : "default"}
+                    className={item.urgency === "Medium" ? "bg-[#cad2c5] text-[#354f52] hover:bg-[#a0af97]" : 
+                              item.urgency === "Low" ? "bg-[#e6eee8] text-[#52796f] hover:bg-[#ceddd1]" : ""}
+                  >
                     {item.urgency}
                   </Badge>
                 </TableCell>
                 <TableCell>{item.eventDate}</TableCell>
                 <TableCell>
-                  <Badge variant={item.status === "Cancelled" ? "outline" : "default"}>
+                  <Badge 
+                    variant={item.status === "Cancelled" ? "outline" : "default"}
+                    className={item.status === "Confirmed" ? "bg-[#82a78a] hover:bg-[#638e6c]" :
+                              item.status === "Attended" ? "bg-[#52796f] hover:bg-[#426159]" :
+                              "border-[#cad2c5] text-[#354f52] hover:bg-[#f4f6f3]"}
+                  >
                     {item.status}
                   </Badge>
                 </TableCell>
