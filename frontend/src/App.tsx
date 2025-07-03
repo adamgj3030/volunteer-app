@@ -9,6 +9,10 @@ import TaskList from "./pages/TaskList.tsx";
 import ProfileForm from "./pages/ProfileForm.tsx";
 import Login from "./pages/Login.tsx";
 import LandingPage from "./pages/LandingPage2.tsx";
+import RegisterPage from './pages/Register.tsx'
+import VolunteerMatchingPage from './pages/MatchVolunteers.tsx'
+import './App.css'
+
 
 function App() {
 
@@ -19,9 +23,11 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login/>}></Route>
+          <Route path="/register" element={<RegisterPage/>}></Route>
           <Route path="/volunteer" element={<VolunteerLanding/>}></Route>
           <Route path="/volunteer/task" element={<TaskList/>}></Route>
           <Route path="/volunteer/manage" element={<ProfileForm/>}></Route>
+          <Route path="/volunteer/matching" element={<VolunteerMatchingPage/>}></Route>
           <Route path="/admin" element={<AdminLanding/>}></Route>
           <Route path="/admin/approval" element={<AdminManage/>}></Route>
           <Route path="/admin/history" element={<VolunteerHistory/>}></Route>
