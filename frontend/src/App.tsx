@@ -22,9 +22,9 @@ function App() {
           <Route path="/volunteer" element={<VolunteerLanding/>}></Route>
           <Route path="/volunteer/task" element={<TaskList/>}></Route>
           <Route path="/volunteer/manage" element={<ProfileForm/>}></Route>
-          <Route path="/volunteer/history" element={<VolunteerHistory/>}></Route>
           <Route path="/admin" element={<AdminLanding/>}></Route>
           <Route path="/admin/approval" element={<AdminManage/>}></Route>
+          <Route path="/admin/history" element={<VolunteerHistory/>}></Route>
           <Route path="/admin/event/creation" element={<EventForm/>}></Route>
         </Routes>
       </main>
