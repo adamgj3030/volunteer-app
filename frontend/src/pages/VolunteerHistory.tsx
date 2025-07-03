@@ -19,25 +19,14 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import type {
+  ParticipationStatus,
+  Urgency,
+  Event,
+  Volunteer,
+  SortableKeys,
+} from "@/types/type";
 
-type ParticipationStatus = "Confirmed" | "Attended" | "Cancelled";
-type Urgency = "High" | "Medium" | "Low";
-
-interface Event {
-  eventName: string;
-  description: string;
-  location: string;
-  requiredSkills: string[];
-  urgency: Urgency;
-  eventDate: string;
-  status: ParticipationStatus;
-}
-
-interface Volunteer {
-  email: string;
-  name: string;
-  events: Event[];
-}
 
 const volunteers: Volunteer[] = [
   {
@@ -81,7 +70,6 @@ const volunteers: Volunteer[] = [
   },
 ];
 
-type SortableKeys = "name" | "email" | "eventName" | "eventDate" | "urgency" | "status";
 
 export default function VolunteerHistory() {
   const [searchTerm, setSearchTerm] = useState("");
