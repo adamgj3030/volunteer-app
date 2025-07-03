@@ -15,7 +15,7 @@ function App() {
   return (
     <Router>
       <Navbar />
-      <main className = "p-4">
+      <main>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login/>}></Route>
