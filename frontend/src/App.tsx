@@ -7,6 +7,10 @@ import { VolunteerHistory } from "./pages/VolunteerHistory";
 import EventForm   from "./pages/EventForm.tsx";
 import TaskList     from "./pages/TaskList.tsx";
 import ProfileForm from "./pages/ProfileForm.tsx";
+import RegisterPage from './pages/Register.tsx'
+import LandingPage from './pages/Landing'
+import VolunteerMatchingPage from './pages/MatchVolunteers.tsx'
+
 import './App.css'
 
 function App() {
@@ -16,15 +20,17 @@ function App() {
       <Navbar />
       <main className = "p-4">
         <Routes>
-          <Route path="/"></Route>
+          <Route path="/" element={<LandingPage/>}></Route>
           <Route path="/admin/event/creation" element={<EventForm/>}></Route>
           <Route path="/volunteer/task" element={<TaskList/>}></Route>
           <Route path="/volunteer/manage" element={<ProfileForm/>}></Route>
           <Route path="/volunteer/history" element={<VolunteerHistory/>}></Route>
+          <Route path="/volunteer/matching" element={<VolunteerMatchingPage/>}></Route>
           <Route path="/volunteer" element={<VolunteerLanding/>}></Route>
-          <Route path="/register"></Route>
+          <Route path="/register" element={<RegisterPage/>}></Route>
           <Route path="/admin" element={<AdminLanding/>}></Route>
           <Route path="/admin/approval" element={<AdminManage/>}></Route>
+
         </Routes>
       </main>
     </Router>
