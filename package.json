@@ -1,10 +1,5 @@
 {
-  "dependencies": {
-    "react-hook-form": "^7.59.0",
-    "react-router-dom": "^7.6.3"
-  },
   "devDependencies": {
-    "@shadcn/ui": "^0.0.4",
-    "vite-tsconfig-paths": "^5.1.4"
+    "@types/react-slick": "^0.23.13"
   }
 }

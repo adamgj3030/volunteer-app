@@ -1,36 +1,35 @@
-import {BrowserRouter as Router, Routes, Route, NavLink, Navigate} from 'react-router-dom';
+import {BrowserRouter as Router, Routes, Route} from 'react-router-dom';
 import Navbar from './components/Navbar.tsx'
 import AdminManage from './pages/AdminManage.tsx';
 import VolunteerLanding from './pages/UserLanding.tsx';
 import AdminLanding from './pages/AdminLanding.tsx';
-import { VolunteerHistory } from "./pages/VolunteerHistory";
-import EventForm   from "./pages/EventForm.tsx";
-import TaskList     from "./pages/TaskList.tsx";
+import VolunteerHistory from "./pages/VolunteerHistory.tsx";
+import EventForm from "./pages/EventForm.tsx";
+import TaskList from "./pages/TaskList.tsx";
 import ProfileForm from "./pages/ProfileForm.tsx";
+import Login from "./pages/Login.tsx";
+import LandingPage from "./pages/LandingPage2.tsx";
 import RegisterPage from './pages/Register.tsx'
-import LandingPage from './pages/Landing'
 import VolunteerMatchingPage from './pages/MatchVolunteers.tsx'
-
-import './App.css'
 
 function App() {
 
   return (
     <Router>
       <Navbar />
-      <main className = "p-4">
+      <main>
         <Routes>
-          <Route path="/" element={<LandingPage/>}></Route>
-          <Route path="/admin/event/creation" element={<EventForm/>}></Route>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Login/>}></Route>
+          <Route path="/register" element={<RegisterPage/>}></Route>
+          <Route path="/volunteer" element={<VolunteerLanding/>}></Route>
           <Route path="/volunteer/task" element={<TaskList/>}></Route>
           <Route path="/volunteer/manage" element={<ProfileForm/>}></Route>
-          <Route path="/volunteer/history" element={<VolunteerHistory/>}></Route>
           <Route path="/volunteer/matching" element={<VolunteerMatchingPage/>}></Route>
-          <Route path="/volunteer" element={<VolunteerLanding/>}></Route>
-          <Route path="/register" element={<RegisterPage/>}></Route>
           <Route path="/admin" element={<AdminLanding/>}></Route>
           <Route path="/admin/approval" element={<AdminManage/>}></Route>
-
+          <Route path="/admin/history" element={<VolunteerHistory/>}></Route>
+          <Route path="/admin/event/creation" element={<EventForm/>}></Route>
         </Routes>
       </main>
     </Router>
