@@ -8,6 +8,7 @@ import EventForm from "./pages/EventForm.tsx";
 import TaskList from "./pages/TaskList.tsx";
 import ProfileForm from "./pages/ProfileForm.tsx";
 import Login from "./pages/Login.tsx";
+import LandingPage from "./pages/LandingPage2.tsx";
 
 function App() {
 
@@ -16,7 +17,7 @@ function App() {
       <Navbar />
       <main className = "p-4">
         <Routes>
-          <Route path="/"></Route>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login/>}></Route>
           <Route path="/volunteer" element={<VolunteerLanding/>}></Route>
           <Route path="/volunteer/task" element={<TaskList/>}></Route>
