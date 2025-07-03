@@ -11,8 +11,6 @@ import Login from "./pages/Login.tsx";
 import LandingPage from "./pages/LandingPage2.tsx";
 import RegisterPage from './pages/Register.tsx'
 import VolunteerMatchingPage from './pages/MatchVolunteers.tsx'
-import './App.css'
-
 
 function App() {
 
