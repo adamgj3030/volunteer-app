@@ -22,6 +22,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type {
   ParticipationStatus,
   Urgency,
+
   SortableKeys,
 } from "@/types/type";
 import { volunteers } from "@/types/data";
@@ -95,7 +96,8 @@ export default function VolunteerHistory() {
   };
 
   return (
-    <div className="container max-w-screen-2xl mx-auto py-10">
+    <div className="bg-[var(--color-ash_gray-500)] min-h-screen py-10">
+    <div className="container max-w-screen-3xl mx-auto py-10 px-10 bg-[var(--color-ash_gray-900)]">
       <h1 className="text-3xl font-bold mb-6 text-[#354f52]">Volunteer Participation History</h1>
       <div className="flex items-center py-4 gap-4">
         <Input
@@ -207,6 +209,7 @@ export default function VolunteerHistory() {
           </TableBody>
         </Table>
       </div>
+    </div>
     </div>
   );
 }
