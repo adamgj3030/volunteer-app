@@ -3,3 +3,13 @@
   color: black !important;
   opacity: 1;
 }
+
+.relative .slick-prev {
+  left: 0;
+  transform: translate(-100%, 0%);
+}
+
+.relative .slick-next {
+  right: 0;
+  transform: translate(180%, 0%);
+}

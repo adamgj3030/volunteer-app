@@ -131,24 +131,8 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="py-16 px-6 text-center">
-        <h2 className="text-3xl font-bold mb-4 text-[var(--color-charcoal-300)]">
-          Ready to Start?
-        </h2>
-        <p className="mb-6 text-[var(--color-charcoal-200)]">
-          Sign up now and join our volunteer community.
-        </p>
-        <Button
-          size="lg"
-          className="bg-[var(--color-hookers_green-500)] hover:bg-[var(--color-hookers_green-600)] focus:ring-[var(--color-hookers_green-300)]"
-        >
-          Join Now
-        </Button>
-      </section>
-
       {/* Image Showcase Carousel */}
-      <section className="py-16 px-6 bg-[var(--color-ash_gray-700)]">
+      <section className="py-16 px-6 ">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-8 text-black">
             Our Volunteers in Action
@@ -175,6 +159,22 @@ const LandingPage: React.FC = () => {
             </Slider>
           </div>
         </div>
+      </section>
+
+      {/* Call to Action */}
+      <section className="py-16 px-6 text-center bg-[var(--color-ash_gray-700)]">
+        <h2 className="text-3xl font-bold mb-4 text-[var(--color-charcoal-300)]">
+          Ready to Start?
+        </h2>
+        <p className="mb-6 text-[var(--color-charcoal-200)]">
+          Sign up now and join our volunteer community.
+        </p>
+        <Button
+          size="lg"
+          className="bg-[var(--color-hookers_green-500)] hover:bg-[var(--color-hookers_green-600)] focus:ring-[var(--color-hookers_green-300)]"
+        >
+          Join Now
+        </Button>
       </section>
 
       {/* Footer */}
