@@ -53,3 +53,7 @@ Thumbs.db
 
 # === GitHub Actions secrets ===
 secrets.*
+
+
+# Backend 
+/backend/.env

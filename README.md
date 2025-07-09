@@ -31,3 +31,7 @@ npx shadcn@latest add button
 This will:
 
 - Copy the `button` component into your local `src/components/ui` folder
+
+## Backend 
+1. 'cd backend'
+2. python app/run.py
