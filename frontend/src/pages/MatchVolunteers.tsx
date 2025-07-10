@@ -11,22 +11,23 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 // Simplified types for matching form requirements
-type Volunteer = {
+interface Volunteer {
   id: string;
   fullName: string;
   skills: string[];
   availability: string[];
-};
+}
 
-type Event = {
+interface Event {
   id: string;
   name: string;
   requiredSkills: string[];
   urgency: 'High' | 'Medium' | 'Low';
   date: string;
-};
+}
 
 type VolunteerMatchFormValues = {
   volunteerId: string;
@@ -34,7 +35,11 @@ type VolunteerMatchFormValues = {
 };
 
 // Urgency ranking for sorting recommendations
-const urgencyRank: Record<Event['urgency'], number> = { High: 1, Medium: 2, Low: 3 };
+const urgencyRank: Record<Event['urgency'], number> = {
+  High: 1,
+  Medium: 2,
+  Low: 3,
+};
 
 export default function VolunteerMatchingPage() {
   // TODO: replace with real API calls
@@ -79,96 +84,115 @@ export default function VolunteerMatchingPage() {
   const selectedEvent = events.find((e) => e.id === form.getValues('matchedEventId'));
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md bg-white p-8 rounded-lg shadow">
-        <h2 className="text-2xl font-semibold mb-6 text-gray-800">Volunteer Matching</h2>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <main className="min-h-screen bg-[var(--color-ash_gray-500)] text-[var(--color-dark_slate_gray-900)] flex items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-[var(--color-white)] dark:bg-[var(--color-dark_slate_gray-900)] shadow-xl rounded-2xl p-6 transition-shadow hover:shadow-[0_8px_24px_-4px_rgba(82,121,111,0.1)]">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-extrabold text-[var(--color-charcoal-100)]">Volunteer Matching</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-            {/* Volunteer selection via button list */}
-            <FormField
-              control={form.control}
-              name="volunteerId"
-              rules={{ required: 'Please select a volunteer' }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Volunteer Name</FormLabel>
-                  <FormControl>
-                    <div className="grid gap-2">
-                      {volunteers.map((v) => (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => field.onChange(v.id)}
-                          className={`w-full text-left p-2 border rounded-lg
-                            ${field.value === v.id ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'}`}
-                        >
-                          {v.fullName}
-                        </button>
-                      ))}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Display selected volunteer details */}
-            {selectedVolunteer && (
-              <div className="p-4 bg-gray-100 rounded">
-                <p><strong>Skills:</strong> {selectedVolunteer.skills.join(', ')}</p>
-                <p><strong>Availability:</strong> {selectedVolunteer.availability.join(', ')}</p>
-              </div>
-            )}
-
-            {/* Event selection via button list */}
-            <FormField
-              control={form.control}
-              name="matchedEventId"
-              rules={{ required: 'No matching event found' }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Matched Event</FormLabel>
-                  <FormControl>
-                    <div className="grid gap-2">
-                      {events
-                        .filter((e) =>
-                          selectedVolunteer
-                            ? e.requiredSkills.every((skill) => selectedVolunteer.skills.includes(skill)) && selectedVolunteer.availability.includes(e.date)
-                            : true
-                        )
-                        .sort((a, b) => urgencyRank[a.urgency] - urgencyRank[b.urgency])
-                        .map((e) => (
+              {/* Volunteer selection via button list */}
+              <FormField
+                control={form.control}
+                name="volunteerId"
+                rules={{ required: 'Please select a volunteer' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[var(--color-charcoal-300)]">Volunteer Name</FormLabel>
+                    <FormControl>
+                      <div className="grid gap-2">
+                        {volunteers.map((v) => (
                           <button
-                            key={e.id}
+                            key={v.id}
                             type="button"
-                            onClick={() => field.onChange(e.id)}
-                            className={`w-full text-left p-2 border rounded-lg
-                              ${field.value === e.id ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-white'}`}
+                            onClick={() => field.onChange(v.id)}
+                            className={`w-full text-left p-2 border rounded-lg focus:outline-none \
+                              ${
+                                field.value === v.id
+                                  ? 'border-[var(--color-cambridge_blue-500)] bg-[var(--color-cambridge_blue-50)]'
+                                  : 'border-[var(--color-ash_gray-400)] bg-[var(--color-white)]'
+                              }
+                            `}
                           >
-                            {e.name} ({e.urgency}) - {e.date}
+                            {v.fullName}
                           </button>
                         ))}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-red-600" />
+                  </FormItem>
+                )}
+              />
+
+              {/* Display selected volunteer details */}
+              {selectedVolunteer && (
+                <div className="p-4 bg-[var(--color-white)] border border-[var(--color-ash_gray-300)] rounded-lg">
+                  <p><strong>Skills:</strong> {selectedVolunteer.skills.join(', ')}</p>
+                  <p><strong>Availability:</strong> {selectedVolunteer.availability.join(', ')}</p>
+                </div>
               )}
-            />
 
-            {/* Display selected event details */}
-            {selectedEvent && (
-              <div className="p-4 bg-gray-100 rounded">
-                <p><strong>Required Skills:</strong> {selectedEvent.requiredSkills.join(', ')}</p>
-                <p><strong>Urgency:</strong> {selectedEvent.urgency}</p>
-                <p><strong>Date:</strong> {selectedEvent.date}</p>
-              </div>
-            )}
+              {/* Event selection via button list */}
+              <FormField
+                control={form.control}
+                name="matchedEventId"
+                rules={{ required: 'No matching event found' }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[var(--color-charcoal-300)]">Matched Event</FormLabel>
+                    <FormControl>
+                      <div className="grid gap-2">
+                        {events
+                          .filter((e) =>
+                            selectedVolunteer
+                              ? e.requiredSkills.every((skill) => selectedVolunteer.skills.includes(skill)) && selectedVolunteer.availability.includes(e.date)
+                              : true
+                          )
+                          .sort((a, b) => urgencyRank[a.urgency] - urgencyRank[b.urgency])
+                          .map((e) => (
+                            <button
+                              key={e.id}
+                              type="button"
+                              onClick={() => field.onChange(e.id)}
+                              className={`w-full text-left p-2 border rounded-lg focus:outline-none \
+                                ${
+                                  field.value === e.id
+                                    ? 'border-[var(--color-cambridge_blue-500)] bg-[var(--color-cambridge_blue-50)]'
+                                    : 'border-[var(--color-ash_gray-400)] bg-[var(--color-white)]'
+                                }
+                              `}
+                            >
+                              {e.name} ({e.urgency}) - {e.date}
+                            </button>
+                          ))}
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-red-600" />
+                  </FormItem>
+                )}
+              />
 
-            <Button type="submit" className="w-full">Save Match</Button>
-          </form>
-        </Form>
-      </div>
-    </div>
+              {/* Display selected event details */}
+              {selectedEvent && (
+                <div className="p-4 bg-[var(--color-white)] border border-[var(--color-ash_gray-300)] rounded-lg">
+                  <p><strong>Required Skills:</strong> {selectedEvent.requiredSkills.join(', ')}</p>
+                  <p><strong>Urgency:</strong> {selectedEvent.urgency}</p>
+                  <p><strong>Date:</strong> {selectedEvent.date}</p>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full bg-[var(--color-cambridge_blue-500)] hover:bg-[var(--color-cambridge_blue-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-400)] disabled:opacity-50"
+              >
+                Save Match
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    </main>
   );
 }

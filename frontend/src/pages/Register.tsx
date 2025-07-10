@@ -1,120 +1,145 @@
-// src/app/register/page.tsx
 'use client';
 
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormDescription,
-  FormMessage,
-} from '@/components/ui/form';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
-type RegisterFormValues = {
+interface FormData {
   email: string;
   password: string;
-};
+}
 
-export default function RegisterPage() {
-  const form = useForm<RegisterFormValues>({
-    defaultValues: { email: '', password: '' },
-  });
+// Reusable class names to DRY up typography
+const headingClass = 'text-2xl font-extrabold text-[var(--color-charcoal-100)]';
+const labelClass = 'block mb-1 text-sm font-medium text-[var(--color-charcoal-300)]';
+const errorInputClass = 'border-red-500 focus-visible:ring-red-200';
 
-  const onSubmit = (values: RegisterFormValues) => {
-    // TODO: hook up to your /api/register
-    console.log('Register data:', values);
+const RegisterPage: React.FC = () => {
+  const [formData, setFormData] = useState<FormData>({ email: '', password: '' });
+  const [errors, setErrors] = useState<Partial<FormData>>({});
+  const [loading, setLoading] = useState(false);
+
+  const validate = (): boolean => {
+    const newErrors: Partial<FormData> = {};
+    if (!formData.email) newErrors.email = 'Email is required.';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Please enter a valid email.';
+    if (!formData.password) newErrors.password = 'Password is required.';
+    else if (formData.password.length < 6) newErrors.password = 'Minimum length is 6 characters.';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+    if (errors[id as keyof FormData]) {
+      setErrors(prev => ({ ...prev, [id]: undefined }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      // TODO: hook up to your /api/register
+      await new Promise(res => setTimeout(res, 1000));
+      // handle successful registration (e.g., redirect to login)
+    } catch (err) {
+      // TODO: handle API errors (e.g., set form-level error)
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white p-4">
-      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow">
-        <h1 className="text-2xl font-semibold text-center text-black mb-6">
-          Create an Account
-        </h1>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            
-            {/* Email Field */}
-            <FormField
-              control={form.control}
-              name="email"
-              rules={{
-                required: 'Email is required',
-                pattern: {
-                  value: /^\S+@\S+$/i,
-                  message: 'Please enter a valid email address',
-                },
-              }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-black">Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="Email"
-                      className="
-                        border-black
-                        placeholder-black placeholder-opacity-50
-                        focus:border-black focus:ring-2 focus:ring-black
-                        bg-white text-black
-                      "
-                    />
-                  </FormControl>
-                  <FormDescription className="text-black">
-                    Enter your email address
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+    <main className="min-h-screen bg-[var(--color-ash_gray-500)] text-[var(--color-dark_slate_gray-900)] flex items-center justify-center">
+      <Card className="w-full max-w-md p-6 bg-[var(--color-white)] dark:bg-[var(--color-dark_slate_gray-900)] shadow-xl rounded-2xl transition-shadow hover:shadow-[0_8px_24px_-4px_rgba(82,121,111,0.1)]">
+        <CardHeader className="text-center">
+          <CardTitle className={headingClass}>Register</CardTitle>
+          <p className="text-sm text-[var(--color-charcoal-200)]">
+            Enter your email and password to create an account
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className={labelClass}>
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="you@example.com"
+                aria-invalid={!!errors.email}
+                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${errors.email ? errorInputClass : ''}`}
+              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600" role="alert">
+                  {errors.email}
+                </p>
               )}
-            />
+            </div>
 
-            {/* Password Field */}
-            <FormField
-              control={form.control}
-              name="password"
-              rules={{
-                required: 'Password is required',
-                minLength: { value: 6, message: 'Minimum length is 6 characters' },
-              }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-black">Password</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="password"
-                      placeholder="Password"
-                      className="
-                        border-black
-                        placeholder-black placeholder-opacity-50
-                        focus:border-black focus:ring-2 focus:ring-black
-                        bg-white text-black
-                      "
-                    />
-                  </FormControl>
-                  <FormDescription className="text-black">
-                    Enter your password
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className={labelClass}>
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+                aria-invalid={!!errors.password}
+                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${errors.password ? errorInputClass : ''}`}
+              />
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600" role="alert">
+                  {errors.password}
+                </p>
               )}
-            />
+            </div>
 
-            {/* Register Button */}
+            {/* CTA */}
             <Button
               type="submit"
-              className="w-full bg-black hover:bg-black text-white shadow-sm"
+              disabled={loading}
+              className="w-full mt-4 bg-[var(--color-cambridge_blue-500)] hover:bg-[var(--color-cambridge_blue-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-400)] disabled:opacity-50"
             >
-              Register
+              {loading ? 'Creating Account...' : 'Register'}
             </Button>
+
+            {/* Divider */}
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-[var(--color-ash_gray-400)]/40" />
+              </div>
+              <div className="relative flex justify-center text-sm text-[var(--color-charcoal-300)]">
+                {/* Or continue with OAuth */}
+              </div>
+            </div>
           </form>
-        </Form>
-      </div>
-    </div>
+
+          {/* Sign-in link */}
+          <div className="mt-4 text-center text-sm text-[var(--color-charcoal-300)]">
+            Already have an account?{' '}
+            <a
+              href="/login"
+              className="text-[var(--color-cambridge_blue-600)] hover:text-[var(--color-cambridge_blue-500)] transition-colors"
+            >
+              Log in
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+    </main>
   );
-}
+};
+
+export default RegisterPage;
