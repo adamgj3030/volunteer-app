@@ -1,4 +1,4 @@
-from backend.app.imports import *
+from app.imports import *
 
 class UserToSkill(db.Model):
     __tablename__ = "user_to_skill"

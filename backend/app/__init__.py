@@ -1,5 +1,5 @@
-from backend.app.imports import *
-from backend.app.database import db  
+from app.imports import *
+from app.database import db  
 def create_app():
     app = Flask(__name__)
     CORS(app)
@@ -16,7 +16,7 @@ def create_app():
         app.register_blueprint(blueprint, url_prefix=prefix)
 
     with app.app_context():
-        from backend.app import models
+        from app import models
         db.create_all()
 
     return app

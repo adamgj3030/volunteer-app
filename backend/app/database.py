@@ -1,3 +1,3 @@
-from backend.app.imports import *
+from app.imports import *
 
 db = SQLAlchemy()

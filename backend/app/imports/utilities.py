@@ -1,4 +1,4 @@
-from backend.app.database import db
+from app.database import db
 
 __all__ = [
     "db"

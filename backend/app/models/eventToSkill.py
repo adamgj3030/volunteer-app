@@ -1,4 +1,4 @@
-from backend.app.imports import *
+from app.imports import *
 
 class EventToSkill(db.Model):
     __tablename__ = "event_to_skill"

@@ -1,4 +1,4 @@
-from backend.app.imports import *
+from app.imports import *
 
 class States(db.Model):
     __tablename__ = "states"

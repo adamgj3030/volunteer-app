@@ -1,4 +1,4 @@
-from backend.app.imports import *
+from app.imports import *
 
 class UserToAvailability(db.Model):
     __tablename__ = "user_to_availability"
