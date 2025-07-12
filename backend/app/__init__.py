@@ -1,20 +1,18 @@
-from backend.app.imports import *
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
+from app.imports.routes_import import blueprint_with_prefixes
 
 db = SQLAlchemy()
-def create_app():
+
+def create_app(config_object="app.config.DevConfig"):
     app = Flask(__name__)
+    app.config.from_object(config_object)
+
+    db.init_app(app)
     CORS(app)
-
-    #app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL") # DATABASE_URL=postgresql://username:password@localhost:5432/yourdb
-    #app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    #app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "default-key")
-
-    # db.init_app(app)
 
     for blueprint, prefix in blueprint_with_prefixes.items():
         app.register_blueprint(blueprint, url_prefix=prefix)
-
-    # with app.app_context():
-    #     db.create_all()
 
     return app
