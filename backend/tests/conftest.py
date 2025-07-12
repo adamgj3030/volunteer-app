@@ -1,35 +1,45 @@
 import os, uuid
 import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 # --- session-wide PostgreSQL service ---------------------------
 @pytest.fixture(scope="session")
 def _postgres_url(docker_services):
-    from sqlalchemy import text, create_engine
-    """
-    Wait for the postgres_test container and create a fresh database
-    """
     port = docker_services.port_for("postgres_test", 5432)
-    base_url = f"postgresql://test_user:test_pass@localhost:{port}"
-    engine = create_engine(base_url, isolation_level="AUTOCOMMIT")
+    base_url = f"postgresql://test_user:test_pass@localhost:{port}/postgres"
+    
+    def _ready() -> bool:
+        try:
+            eng = create_engine(base_url, isolation_level="AUTOCOMMIT")
+            with eng.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return True
+        except OperationalError:
+            return False
+
+    docker_services.wait_until_responsive(timeout=30.0, pause=0.5, check=_ready)
 
     db_name = f"test_{uuid.uuid4().hex}"
-    with engine.connect() as conn:
+    eng = create_engine(base_url, isolation_level="AUTOCOMMIT")
+    with eng.connect() as conn:
         conn.execute(text(f'CREATE DATABASE "{db_name}"'))
-    engine.dispose()
+    eng.dispose()
 
-    test_url = f"{base_url}/{db_name}"
+    test_url = f"postgresql://test_user:test_pass@localhost:{port}/{db_name}"
     os.environ["DATABASE_URL"] = test_url
     yield test_url
 
-    engine = create_engine(base_url, isolation_level="AUTOCOMMIT")
-    with engine.connect() as conn:
-        conn.execute(text(
-            "SELECT pg_terminate_backend(pid) "
-            "FROM pg_stat_activity WHERE datname = :dname",
+    eng = create_engine(base_url, isolation_level="AUTOCOMMIT")
+    with eng.connect() as conn:
+        conn.execute(
+            text("SELECT pg_terminate_backend(pid) "
+                 "FROM pg_stat_activity WHERE datname = :dname"),
             {"dname": db_name},
-        ))
+        )
         conn.execute(text(f'DROP DATABASE "{db_name}"'))
-    engine.dispose()
+    eng.dispose()
 
 @pytest.fixture(scope="session")
 def app(_postgres_url):
