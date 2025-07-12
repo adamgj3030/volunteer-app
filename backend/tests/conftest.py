@@ -4,6 +4,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import scoped_session, sessionmaker
 
+
 # --- session-wide PostgreSQL service ---------------------------
 @pytest.fixture(scope="session")
 def _postgres_url(docker_services):
@@ -41,31 +42,37 @@ def _postgres_url(docker_services):
         conn.execute(text(f'DROP DATABASE "{db_name}"'))
     eng.dispose()
 
+
 @pytest.fixture(scope="session")
 def app(_postgres_url):
     from app import create_app
     return create_app("app.config.TestConfig")
 
+
 @pytest.fixture(scope="session")
 def client(app):
     return app.test_client()
 
+
 @pytest.fixture(autouse=True)
 def db_session(app):
-    """
-    Wrap each test in a SAVEPOINT so data never leaks between tests.
-    """
     from app import db as _db
+
     with app.app_context():
         _db.create_all()
+
         connection = _db.engine.connect()
-        trans = connection.begin()
-        options = dict(bind=connection, binds={})
-        session = _db.create_scoped_session(options=options)
+        transaction = connection.begin()
 
-        _db.session = session
-        yield session
+        factory = sessionmaker(bind=connection)
+        Session = scoped_session(factory)
+        _db.session = Session
 
-        trans.rollback()
+        nested = connection.begin_nested()
+
+        yield Session
+
+        nested.rollback()
+        Session.remove()
+        transaction.rollback()
         connection.close()
-        session.remove()
