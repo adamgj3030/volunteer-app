@@ -2,7 +2,7 @@ services:
   postgres_test:
     image: postgres:17.5-alpine
     ports:
-      - "5432:5432"
+      - "5432"
     environment:
       POSTGRES_USER:  test_user
       POSTGRES_PASSWORD: test_pass
