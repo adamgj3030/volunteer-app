@@ -19,4 +19,7 @@ class DevConfig(BaseConfig):
 
 class TestConfig(BaseConfig):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = os.environ["DATABASE_URL"]
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://test_user:test_pass@localhost:5432/test_db",
+    )
