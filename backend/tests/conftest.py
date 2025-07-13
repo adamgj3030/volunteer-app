@@ -1,4 +1,5 @@
-import os, uuid
+import os
+import uuid
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
