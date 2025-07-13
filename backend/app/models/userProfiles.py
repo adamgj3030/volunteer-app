@@ -19,7 +19,7 @@ class UserProfiles(db.Model):
                          db.ForeignKey('states.state_id'), 
                          nullable=False)
 
-    role_id = db.Column(db.enum(User_Roles),
+    role_id = db.Column(db.Enum(User_Roles),
                          nullable=False,
                          default=User_Roles.VOLUNTEER) # 0 for volunteer, 1 for admin, etc.
 

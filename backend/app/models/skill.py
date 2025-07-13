@@ -3,7 +3,7 @@ from app.imports import *
 class SkillLevelEnum(enum.Enum):
     BEGINNER = 0
     INTERMEDIATE = 1
-    EXPERT = 1
+    EXPERT = 2
 
 class Skill(db.Model):
     __tablename__ = "skills"
