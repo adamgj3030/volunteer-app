@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect} from "react";
 import {
   Table,
   TableHeader,
@@ -14,14 +14,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
+import axios from "axios";
+const db_url = import.meta.env.VITE_DEVELOPMENT_DB_URL;
+
 type User = {
   user_id: number;
-  name: string;
+  full_name: string;
   email: string;
   role: string;
 };
 
-type SortableUserKeys = "name" | "email" | "role";
+type SortableUserKeys = "full_name" | "email" | "role";
 
 export default function AdminManage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -29,19 +32,20 @@ export default function AdminManage() {
     key: SortableUserKeys;
     direction: "ascending" | "descending";
   } | null>(null);
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
 
-  const manageData: User[] = [
-    { user_id: 0, name: "Jason Quach", email: "jtquach@uh.edu", role: "Admin" },
-    { user_id: 1, name: "Adam", email: "adam@uh.edu", role: "Admin" },
-    { user_id: 2, name: "Katie", email: "katie@uh.edu", role: "Member" },
-  ];
+  useEffect(() => {
+    axios.get(`${db_url}/pending`)
+      .then((res: any) => setPendingUsers(res.data))
+      .catch((err: unknown) => console.error(err))
+  }, [])
 
   const filteredAndSortedData = useMemo(() => {
-    let data = [...manageData];
+    let data = [...pendingUsers];
 
     if (searchQuery) {
       data = data.filter((user) =>
-        ["name", "email"].some((key) =>
+        ["full_name", "email"].some((key) =>
           user[key as keyof User].toLowerCase().includes(searchQuery.toLowerCase())
         )
       );
@@ -59,7 +63,7 @@ export default function AdminManage() {
     }
 
     return data;
-  }, [manageData, searchQuery, sortConfig]);
+  }, [searchQuery, sortConfig]);
 
   const requestSort = (key: SortableUserKeys) => {
     let direction: "ascending" | "descending" = "ascending";
@@ -99,9 +103,9 @@ export default function AdminManage() {
               <TableHeader>
                 <TableRow className="border-b border-[#cad2c5]">
                   <TableHead>
-                    <Button variant="ghost" onClick={() => requestSort("name")} className="hover:bg-[#e6eee8] hover:text-[#52796f]">
+                    <Button variant="ghost" onClick={() => requestSort("full_name")} className="hover:bg-[#e6eee8] hover:text-[#52796f]">
                       Name
-                      {getSortIcon("name")}
+                      {getSortIcon("full_name")}
                     </Button>
                   </TableHead>
                   <TableHead>
@@ -122,20 +126,20 @@ export default function AdminManage() {
               <TableBody>
                 {filteredAndSortedData.map((user) => (
                   <TableRow key={user.user_id} className="border-b border-[#f4f6f3] hover:bg-[#f4f6f3]">
-                    <TableCell>{user.name}</TableCell>
+                    <TableCell>{user.full_name}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.role}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
                           className="bg-[#84a98c] hover:bg-[#6b8e7b] text-white"
-                          onClick={() => alert(`Accepted ${user.name}`)}
+                          onClick={() => alert(`Accepted ${user.full_name}`)}
                         >
                           Accept
                         </Button>
                         <Button
                           variant="destructive"
-                          onClick={() => alert(`Denied ${user.name}`)}
+                          onClick={() => alert(`Denied ${user.full_name}`)}
                         >
                           Deny
                         </Button>
