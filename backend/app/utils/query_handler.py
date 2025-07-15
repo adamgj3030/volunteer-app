@@ -10,8 +10,8 @@ def query_handler(model, filters_dict = {}, filters=None, date_column=None):
     :param order_by: Optional ordering for the results
     :return: List of results or empty list if no results found
     """
-    query = model.query
-    filter = []
+    filters_dict = filters_dict or {}
+    filters = filters or []
 
     for key, value in filters_dict.items():
         if value in ["start_date", "end_date", "limit", "offset", "sort", "order"]:

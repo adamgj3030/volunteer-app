@@ -2,6 +2,7 @@ Flask
 flask-cors
 SQLAlchemy
 flask_sqlalchemy
+flask-migrate
 psycopg2-binary
 python-dotenv
 gunicorn

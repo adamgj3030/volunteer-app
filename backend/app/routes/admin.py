@@ -1,6 +1,6 @@
 from app.imports import *
 
-admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+admin_bp = Blueprint('admin', __name__)
 
 @admin_bp.route('/pending', methods=['GET'])
 def pending_users():
@@ -32,7 +32,7 @@ def approve_user(user_id):
     
 
 @admin_bp.route('/deny/<int:user_id>', methods=['POST'])
-def approve_user(user_id):
+def deny_user(user_id):
     user = UserProfiles.query.get(user_id)
 
     if not user:
@@ -56,8 +56,6 @@ def list_users():
 
     if not users:
         return jsonify({"message": "No users found"}), 404
-    
-
     
     return jsonify([
         {

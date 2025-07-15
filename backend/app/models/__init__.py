@@ -17,6 +17,6 @@ __all__ = [
     "UserToAvailability",
     "UserProfiles",
     "UserToSkill",
-    "VolunteerHistory", "ParticipationStatusEnum"
+    "VolunteerHistory", "ParticipationStatusEnum",
     "User_Roles"
 ]

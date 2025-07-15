@@ -1,5 +1,6 @@
 from app.imports import *
-from app.database import db  
+# from app.database import db  
+migrate = Migrate()
 def create_app():
     app = Flask(__name__)
     CORS(app)
@@ -15,8 +16,10 @@ def create_app():
     for blueprint, prefix in blueprint_with_prefixes.items():
         app.register_blueprint(blueprint, url_prefix=prefix)
 
-    with app.app_context():
-        from app import models
-        db.create_all()
+    migrate.init_app(app, db)
+
+    # with app.app_context():
+    #     from app import models
+    #     db.create_all()
 
     return app
