@@ -4,7 +4,7 @@ from .skill import Skill, SkillLevelEnum
 from .state import States
 from .userAvailability import UserToAvailability
 from .userCredentials import UserCredentials
-from .userProfiles import UserProfiles
+from .userProfiles import UserProfiles, User_Roles
 from .userToSkill import UserToSkill
 from .volunteerHistory import VolunteerHistory, ParticipationStatusEnum
 
@@ -18,4 +18,5 @@ __all__ = [
     "UserProfiles",
     "UserToSkill",
     "VolunteerHistory", "ParticipationStatusEnum"
+    "User_Roles"
 ]

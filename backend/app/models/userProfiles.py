@@ -5,8 +5,6 @@ class User_Roles(enum.IntEnum):
     ADMIN = 1
     PENDING_APPROVAL = 2
 
-    
-
 class UserProfiles(db.Model):
     __tablename__ = "user_profiles";  
 
