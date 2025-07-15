@@ -1,4 +1,5 @@
 from app.imports import *
+from app.models import UserProfiles, User_Roles
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -10,6 +11,8 @@ def pending_users():
         return jsonify({"message": "No pending users"}), 404
     
     return jsonify([{"user_id": user.user_id, 
+                     "email": user.email,
+                     "role": user.role_id,  # Will return 'PENDING_APPROVAL',
                      "full_name": user.full_name
                      }] 
                      for user in pending), 200
