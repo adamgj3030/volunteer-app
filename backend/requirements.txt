@@ -10,3 +10,6 @@ bcrypt
 PyJWT
 pytest
 pytest-flask
+flask-socketio 
+eventlet
+APScheduler

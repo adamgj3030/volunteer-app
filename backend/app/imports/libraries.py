@@ -21,6 +21,8 @@ from sqlalchemy import asc, desc
 
 import enum
 
+from flask_socketio import SocketIO, emit
+
 
 __all__ = [
     "Flask",
@@ -38,5 +40,9 @@ __all__ = [
     "wraps",
     "SQLAlchemy",
     "enum",
-    "Migrate"
+    "Migrate",
+    "asc",
+    "desc",
+    "SocketIO",
+    "emit",
 ]
