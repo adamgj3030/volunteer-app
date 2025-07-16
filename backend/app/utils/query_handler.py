@@ -1,4 +1,5 @@
 from app.imports import *
+from sqlalchemy import asc, desc
 
 def query_handler(model, filters_dict = {}, filters=None, date_column=None):
     """
@@ -12,6 +13,7 @@ def query_handler(model, filters_dict = {}, filters=None, date_column=None):
     """
     filters_dict = filters_dict or {}
     filters = filters or []
+    query = model.query
 
     for key, value in filters_dict.items():
         if value in ["start_date", "end_date", "limit", "offset", "sort", "order"]:
@@ -48,8 +50,8 @@ def query_handler(model, filters_dict = {}, filters=None, date_column=None):
             query = query.order_by(asc(sort_attr) if order == "asc" else desc(sort_attr))
 
         # Pagination
-        limit = filters_dict.get("limit", type=int)
-        offset = filters_dict.get("offset", type=int)
+        limit = int(filters_dict.get("limit", 0)) if filters_dict.get("limit") else None
+        offset = int(filters_dict.get("offset", 0)) if filters_dict.get("offset") else None
 
         if isinstance(limit, int) and limit > 0:
             query = query.limit(limit)

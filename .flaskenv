@@ -1,2 +1,2 @@
-FLASK_APP=backend.app:create_app
+FLASK_APP=backend.app
 FLASK_ENV=development

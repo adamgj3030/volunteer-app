@@ -1,4 +1,5 @@
 import {BrowserRouter as Router, Routes, Route} from 'react-router-dom';
+import { Toaster } from 'sonner';
 import Navbar from './components/Navbar.tsx'
 import AdminManage from './pages/AdminManage.tsx';
 import VolunteerLanding from './pages/UserLanding.tsx';
@@ -11,14 +12,17 @@ import Login from "./pages/Login.tsx";
 import LandingPage from "./pages/LandingPage2.tsx";
 import RegisterPage from './pages/Register.tsx'
 import VolunteerMatchingPage from './pages/MatchVolunteers.tsx'
+import NotificationsTesting from './pages/NotificationsTesting.tsx';
+import NotificationListener from './components/NotificationListener.tsx';
 import EventMatching from './pages/EventMatching.tsx';
-
 
 function App() {
 
   return (
     <Router>
       <Navbar />
+      <Toaster richColors position="bottom-right"/>
+      <NotificationListener />
       <main>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -32,6 +36,7 @@ function App() {
           <Route path="/admin/approval" element={<AdminManage/>}></Route>
           <Route path="/admin/history" element={<VolunteerHistory/>}></Route>
           <Route path="/admin/event/creation" element={<EventForm/>}></Route>
+          <Route path="/notifications" element={<NotificationsTesting/>}></Route>
           <Route path="/event/matching" element={<EventMatching />} />
         </Routes>
       </main>

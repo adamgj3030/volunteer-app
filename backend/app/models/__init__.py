@@ -1,4 +1,4 @@
-from app.models.events import Events
+from app.models.events import Events, UrgencyEnum
 from app.models.eventToSkill import EventToSkill
 from app.models.skill import Skill, SkillLevelEnum
 from app.models.state import States
@@ -9,7 +9,7 @@ from app.models.userToSkill import UserToSkill
 from app.models.volunteerHistory import VolunteerHistory, ParticipationStatusEnum
 
 __all__ = [
-    "Events",
+    "Events", "UrgencyEnum",
     "EventToSkill",
     "Skill", "SkillLevelEnum",
     "States",
