@@ -4,10 +4,7 @@ migrate = Migrate()
 def create_app(config_object="app.config.DevConfig"):
     app = Flask(__name__)
     app.config.from_object(config_object)
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        f"postgresql://{os.getenv("DB_USER")}:{os.getenv("DB_PASSWORD")}@{os.getenv("DB_HOST", "localhost")}:{os.getenv("DB_PORT", "5432")}/{os.getenv("DB_NAME")}"
-    )
+    
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "default-key")
 
