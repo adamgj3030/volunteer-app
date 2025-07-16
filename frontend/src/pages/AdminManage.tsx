@@ -35,32 +35,32 @@ export default function AdminManage() {
   const [loading, setLoading] = useState(true);
 
 useEffect(() => {
-  // console.log("Fetching from:", `${db_url}/admin/pending`);
+  console.log("Fetching from:", `${db_url}/admin/pending`);
 
-  // axios.get(`${db_url}/admin/pending`)
-  //   .then((res) => {
-  //     console.log("Got pending users", res.data);
-  //     setPendingUsers(res.data);
-  //   })
-  //   .catch((err) => {
-  //     console.error("Error fetching pending users:", err);
-  //   })
-  //   .finally(() => setLoading(false));
+  axios.get(`${db_url}/admin/pending`)
+    .then((res) => {
+      console.log("Got pending users", res.data);
+      setPendingUsers(res.data);
+    })
+    .catch((err) => {
+      console.error("Error fetching pending users:", err);
+    })
+    .finally(() => setLoading(false));
 
-    const dummyUsers: User[] = [
-    { user_id: 1, full_name: "Alice Johnson", email: "alice@example.com", role: "PENDING_APPROVAL" },
-    { user_id: 2, full_name: "Bob Smith", email: "bob@example.com", role: "PENDING_APPROVAL" },
-    { user_id: 3, full_name: "Charlie Lee", email: "charlie@example.com", role: "PENDING_APPROVAL" },
-  ];
-  setPendingUsers(dummyUsers);
-  setLoading(false);
+  //   const dummyUsers: User[] = [
+  //   { user_id: 1, full_name: "Alice Johnson", email: "alice@example.com", role: "PENDING_APPROVAL" },
+  //   { user_id: 2, full_name: "Bob Smith", email: "bob@example.com", role: "PENDING_APPROVAL" },
+  //   { user_id: 3, full_name: "Charlie Lee", email: "charlie@example.com", role: "PENDING_APPROVAL" },
+  // ];
+  // setPendingUsers(dummyUsers);
+  // setLoading(false);
 
 }, []);
 
 const acceptUser = async (user_id: number) => {
   try {
-    // const res = await axios.post(`${db_url}/admin/approve/${user_id}`);
-    // console.log("User accepted:", res.data);
+    const res = await axios.post(`${db_url}/admin/approve/${user_id}`);
+    console.log("User accepted:", res.data);
 
     setPendingUsers(prev => prev.filter(user => user.user_id !== user_id));
   } catch (err) {
@@ -70,8 +70,8 @@ const acceptUser = async (user_id: number) => {
 
 const denyUser = async (user_id: number) => {
   try {
-    // const res = await axios.post(`${db_url}/admin/deny/${user_id}`);
-    // console.log("User denied:", res.data);
+    const res = await axios.post(`${db_url}/admin/deny/${user_id}`);
+    console.log("User denied:", res.data);
 
     setPendingUsers(prev => prev.filter(user => user.user_id !== user_id));
   } catch (err) {
