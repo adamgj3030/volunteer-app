@@ -60,3 +60,23 @@ secrets.*
 
 # venv 
 venv/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-wheel-metadata/
+.eggs/
+*.egg-info/
+*.egg
+
+# Environment
+.env
+.venv
+
+# IDE / Editor
+.vscode/
+.idea/
