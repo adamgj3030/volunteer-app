@@ -57,6 +57,9 @@ secrets.*
 
 # Backend 
 /backend/.env
+
+# venv 
+venv/
 # Python
 __pycache__/
 *.pyc

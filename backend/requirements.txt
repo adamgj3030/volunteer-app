@@ -1,6 +1,8 @@
 Flask
 flask-cors
 SQLAlchemy
+flask_sqlalchemy
+flask-migrate
 Flask-SQLAlchemy
 psycopg2-binary
 python-dotenv

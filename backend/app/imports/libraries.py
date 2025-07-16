@@ -15,6 +15,10 @@ from flask import Flask
 from flask_cors import CORS
 from flask import Blueprint, request, jsonify
 
+from flask_migrate import Migrate
+
+import enum
+
 
 __all__ = [
     "Flask",
@@ -30,5 +34,7 @@ __all__ = [
     "datetime",
     "timedelta",
     "wraps",
-    "SQLAlchemy"
+    "SQLAlchemy",
+    "enum",
+    "Migrate"
 ]
