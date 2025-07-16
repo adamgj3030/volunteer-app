@@ -1,4 +1,4 @@
-from app.imports import *
+from .imports import *
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
 from app.models.events import Events
