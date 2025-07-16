@@ -3,12 +3,12 @@
 Frontend stack: Typescript, React, Tailwind CSS, shadcn/ui
 Backend stack: Python, Flask, PostgreSQL
 
-## Setup
-1. Clone the repo
-2. `cd frontend && npm install`
+## Frontend
+Create a .env file with the corresponding values:
+DEVELOPMENT_DB_URL=http://127.0.0.1:5000
+VITE_DEVELOPMENT_DB_URL=http://127.0.0.1:5000
 
-## Scripts
-- `npm run dev` for frontend
+1. `cd frontend && npm install`
 
 ## How to Add `shadcn/ui` Components
 
@@ -32,6 +32,20 @@ This will:
 
 - Copy the `button` component into your local `src/components/ui` folder
 
+## Database
+Install PostgreSQL
+https://www.postgresql.org/download/windows/
+
+Go to pgAdmin4 and add a new server (name: cosc4353, host: localhost, password: password)
+Create a new database under that server with the name volunteer_app
+
+1. cd backend
+2. flask db upgrade
+
+
 ## Backend 
-1. 'cd backend'
-2. python app/run.py
+Create a .env file with the corresponding values:
+DATABASE_URL = "postgresql://postgres:password@localhost:5432/volunteer_app"
+
+1. cd backend
+2. flask run
