@@ -1,12 +1,12 @@
-from .events import Events
-from .eventToSkill import EventToSkill
-from .skill import Skill, SkillLevelEnum
-from .state import States
-from .userAvailability import UserToAvailability
-from .userCredentials import UserCredentials
-from .userProfiles import UserProfiles, User_Roles
-from .userToSkill import UserToSkill
-from .volunteerHistory import VolunteerHistory, ParticipationStatusEnum
+from app.models.events import Events
+from app.models.eventToSkill import EventToSkill
+from app.models.skill import Skill, SkillLevelEnum
+from app.models.state import States
+from app.models.userAvailability import UserToAvailability
+from app.models.userCredentials import UserCredentials
+from app.models.userProfiles import UserProfiles, User_Roles
+from app.models.userToSkill import UserToSkill
+from app.models.volunteerHistory import VolunteerHistory, ParticipationStatusEnum
 
 __all__ = [
     "Events",
@@ -18,5 +18,5 @@ __all__ = [
     "UserProfiles",
     "UserToSkill",
     "VolunteerHistory", "ParticipationStatusEnum",
-    "User_Roles"
+    "User_Roles",
 ]

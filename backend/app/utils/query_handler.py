@@ -1,5 +1,5 @@
 from app.imports import *
-from sqlalchemy import asc, desc
+
 def query_handler(model, filters_dict = {}, filters=None, date_column=None):
     """
     Generic query handler for retrieving data from the database.
