@@ -1,4 +1,4 @@
-from .imports import *
+from app.imports import *
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
 from app.models.events import Events
@@ -24,7 +24,7 @@ def create_app(config_object="app.config.DevConfig"):
     for blueprint, prefix in blueprint_with_prefixes.items():
         app.register_blueprint(blueprint, url_prefix=prefix)
 
-    from app import sockets  # ✅ Keep this AFTER socketio.init_app
+    from app import sockets  # ✅ Keep this AFTER socketio.init_app, let me know if you need to change this
 
     # Background task to check upcoming events and send reminders
     def check_upcoming_events():
