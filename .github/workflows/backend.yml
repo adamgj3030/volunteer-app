@@ -1,0 +1,41 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**"]
+  pull_request:
+    branches: [main]
+    paths: ["backend/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      PYTEST_DOCKER_COMPOSE: tests/docker-compose.yml
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+        cache: "pip"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # pytest-docker spins up the postgres_test container defined in
+    # backend/tests/docker-compose.yml and exposes its mapped port
+    # to the fixtures that call `docker_services.port_for(...)` :contentReference[oaicite:2]{index=2}
+    - name: Run tests + coverage
+      run: |
+        pytest --cov=app
