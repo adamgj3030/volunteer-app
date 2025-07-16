@@ -1,15 +1,19 @@
 Flask
 flask-cors
 SQLAlchemy
-flask_sqlalchemy
 flask-migrate
+Flask-SQLAlchemy
 psycopg2-binary
 python-dotenv
 gunicorn
 bcrypt
 PyJWT
+# testing dependencies
 pytest
 pytest-flask
 flask-socketio 
 eventlet
 APScheduler
+pytest-cov # pytest code coverage
+pytest-docker # docker support for pytest
+sqlalchemy-utils # helps with testing SQLAlchemy models

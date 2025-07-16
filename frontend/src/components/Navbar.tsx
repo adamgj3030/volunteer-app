@@ -17,6 +17,7 @@ const navItems = [
   { name: 'AdminVolunteerHistory', href: '/admin/history' },
   { name: 'AdminEventCreation', href: '/admin/event/creation' },
   { name: 'VolunteerMatching', href: '/volunteer/matching' },
+  { name: 'EventMatching', href: '/event/matching' },
 ];
 
 export default function Navbar() {

@@ -14,6 +14,7 @@ import RegisterPage from './pages/Register.tsx'
 import VolunteerMatchingPage from './pages/MatchVolunteers.tsx'
 import NotificationsTesting from './pages/NotificationsTesting.tsx';
 import NotificationListener from './components/NotificationListener.tsx';
+import EventMatching from './pages/EventMatching.tsx';
 
 function App() {
 
@@ -36,6 +37,7 @@ function App() {
           <Route path="/admin/history" element={<VolunteerHistory/>}></Route>
           <Route path="/admin/event/creation" element={<EventForm/>}></Route>
           <Route path="/notifications" element={<NotificationsTesting/>}></Route>
+          <Route path="/event/matching" element={<EventMatching />} />
         </Routes>
       </main>
     </Router>
