@@ -1,5 +1,7 @@
 from app.imports import *
 from datetime import datetime
+from sqlalchemy.orm import relationship
+from app.models.userToSkill import UserToSkill
 
 class User_Roles(enum.Enum):
     VOLUNTEER = "VOLUNTEER"
@@ -17,8 +19,24 @@ class UserCredentials(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     email_confirmed_at = db.Column(db.DateTime, nullable=True)
     confirmation_token_version = db.Column(db.Integer, default=0, nullable=False)
+
+    # One-to-one profile -------------------------------------------------
+    profile = relationship(
+        "UserProfiles",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     
-    
+    skills_assoc = relationship(
+        "UserToSkill",
+        backref="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+    )
+
     def __repr__(self) -> str:  # pragma: no cover - debug helper
         return f"<UserCredentials id={self.user_id} email={self.email} role={self.role.name}>"
 
