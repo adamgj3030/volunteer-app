@@ -5,9 +5,13 @@ from app.models.events import Events
 from app.models.userProfiles import UserProfiles
 from app.models.volunteerHistory import VolunteerHistory
 from sqlalchemy import and_
+from app.utils.mailer import init_mail
+
 
 migrate = Migrate()
 socketio = SocketIO()  # No config yet
+
+
 
 def create_app(config_object="app.config.DevConfig"):
     app = Flask(__name__)
@@ -19,7 +23,15 @@ def create_app(config_object="app.config.DevConfig"):
     db.init_app(app)
     migrate.init_app(app, db)
     socketio.init_app(app, cors_allowed_origins="*")  # ✅ CORS properly applied here
-    CORS(app)
+    CORS(
+      app,
+      origins= app.config["FRONTEND_ORIGIN"],
+      supports_credentials=True,
+      methods=["GET","POST","OPTIONS","PUT","PATCH","DELETE"],
+      allow_headers=["Content-Type","Authorization"]
+    )
+    
+    init_mail(app)
 
     for blueprint, prefix in blueprint_with_prefixes.items():
         app.register_blueprint(blueprint, url_prefix=prefix)

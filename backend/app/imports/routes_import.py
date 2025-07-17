@@ -11,7 +11,7 @@ from app.routes.admin import admin_bp
 
 blueprint_with_prefixes = {
     users_profiles_bp: '/users/profiles',
-    users_credentials_bp: '/users/credentials',
+    users_credentials_bp: '/auth',
     events_bp: '/events',
     skills_bp: '/skills',
     volunteer_history_bp: '/volunteer/history',

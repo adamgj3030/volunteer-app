@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { registerUser } from '@/lib/api';
 
 interface FormData {
   email: string;
@@ -23,6 +24,8 @@ const RegisterPage: React.FC = () => {
   });
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [showCheckEmail, setShowCheckEmail] = useState(false);
 
   const validate = (): boolean => {
     const newErrors: Partial<FormData> = {};
@@ -76,13 +79,18 @@ const RegisterPage: React.FC = () => {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
+    setServerError(null);
 
     try {
-      // TODO: hook up to your /api/register
-      await new Promise(res => setTimeout(res, 1000));
-      // handle successful registration (e.g., redirect to login)
+      await registerUser({
+        email: formData.email,
+        password: formData.password,
+        role: formData.role as 'volunteer' | 'admin',
+      });
+      setShowCheckEmail(true);
     } catch (err) {
-      // TODO: handle API errors (e.g., set form-level error)
+      console.error(err);
+      setServerError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -97,9 +105,14 @@ const RegisterPage: React.FC = () => {
             Enter your email and password to create an account
           </p>
         </CardHeader>
-
         <CardContent>
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            {serverError && (
+              <div className="p-3 text-sm text-red-700 bg-red-100 rounded-md" role="alert">
+                {serverError}
+              </div>
+            )}
+
             {/* Email */}
             <div>
               <label htmlFor="email" className={labelClass}>
@@ -209,16 +222,6 @@ const RegisterPage: React.FC = () => {
             >
               {loading ? 'Creating Account...' : 'Register'}
             </Button>
-
-            {/* Divider */}
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-[var(--color-ash_gray-400)]/40" />
-              </div>
-              <div className="relative flex justify-center text-sm text-[var(--color-charcoal-300)]">
-                {/* Or continue with OAuth */}
-              </div>
-            </div>
           </form>
 
           {/* Sign-in link */}
@@ -233,6 +236,21 @@ const RegisterPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Check Email Modal */}
+      {showCheckEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm p-6 bg-white rounded-xl shadow-xl text-center space-y-4">
+            <h2 className="text-xl font-semibold">Check your email</h2>
+            <p className="text-sm text-gray-600">
+              We've sent a confirmation link to <strong>{formData.email}</strong>. Click the link to activate your account.
+            </p>
+            <Button onClick={() => setShowCheckEmail(false)} className="w-full">
+              Ok
+            </Button>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

@@ -1,5 +1,4 @@
-// src/pages/LoginPage.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -18,6 +17,19 @@ const LoginPage: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({ email: "", password: "" });
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const [loading, setLoading] = useState(false);
+  const [verifiedMsg, setVerifiedMsg] = useState<string | null>(null);
+
+  // read ?verified=1 or error
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get('verified');
+    if (v === '1') {
+      setVerifiedMsg('Your email has been verified. Please sign in.');
+    } else if (v === '0') {
+      const err = params.get('error');
+      setVerifiedMsg(err === 'token' ? 'Verification link expired or invalid.' : 'Unable to verify email.');
+    }
+  }, []);
 
   const validate = (): boolean => {
     const newErrors: Partial<FormData> = {};
@@ -59,6 +71,11 @@ const LoginPage: React.FC = () => {
           <p className="text-sm text-[var(--color-charcoal-200)]">
             Enter your email below to login to your account
           </p>
+          {verifiedMsg && (
+            <div className="mt-3 p-2 text-sm rounded-md bg-green-100 text-green-700" role="status">
+              {verifiedMsg}
+            </div>
+          )}
         </CardHeader>
 
         <CardContent>
