@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,24 +6,49 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 interface FormData {
   email: string;
   password: string;
+  confirmPassword: string;
+  role: 'volunteer' | 'admin' | '';
 }
 
-// Reusable class names to DRY up typography
 const headingClass = 'text-2xl font-extrabold text-[var(--color-charcoal-100)]';
 const labelClass = 'block mb-1 text-sm font-medium text-[var(--color-charcoal-300)]';
 const errorInputClass = 'border-red-500 focus-visible:ring-red-200';
 
 const RegisterPage: React.FC = () => {
-  const [formData, setFormData] = useState<FormData>({ email: '', password: '' });
+  const [formData, setFormData] = useState<FormData>({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: '',
+  });
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const [loading, setLoading] = useState(false);
 
   const validate = (): boolean => {
     const newErrors: Partial<FormData> = {};
-    if (!formData.email) newErrors.email = 'Email is required.';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Please enter a valid email.';
-    if (!formData.password) newErrors.password = 'Password is required.';
-    else if (formData.password.length < 6) newErrors.password = 'Minimum length is 6 characters.';
+
+    if (!formData.email) {
+      newErrors.email = 'Email is required.';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email.';
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Password is required.';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Minimum length is 6 characters.';
+    }
+
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password.';
+    } else if (formData.confirmPassword !== formData.password) {
+      newErrors.confirmPassword = 'Passwords do not match.';
+    }
+
+    if (!formData.role) {
+      newErrors.role = 'Please select a role.';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -38,10 +61,22 @@ const RegisterPage: React.FC = () => {
     }
   };
 
+  const handleRoleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      role: prev.role === id ? '' : (id as 'volunteer' | 'admin'),
+    }));
+    if (errors.role) {
+      setErrors(prev => ({ ...prev, role: undefined }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
+
     try {
       // TODO: hook up to your /api/register
       await new Promise(res => setTimeout(res, 1000));
@@ -62,6 +97,7 @@ const RegisterPage: React.FC = () => {
             Enter your email and password to create an account
           </p>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             {/* Email */}
@@ -76,7 +112,9 @@ const RegisterPage: React.FC = () => {
                 onChange={handleChange}
                 placeholder="you@example.com"
                 aria-invalid={!!errors.email}
-                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${errors.email ? errorInputClass : ''}`}
+                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${
+                  errors.email ? errorInputClass : ''
+                }`}
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600" role="alert">
@@ -97,11 +135,68 @@ const RegisterPage: React.FC = () => {
                 onChange={handleChange}
                 placeholder="••••••••"
                 aria-invalid={!!errors.password}
-                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${errors.password ? errorInputClass : ''}`}
+                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${
+                  errors.password ? errorInputClass : ''
+                }`}
               />
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600" role="alert">
                   {errors.password}
+                </p>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label htmlFor="confirmPassword" className={labelClass}>
+                Confirm Password
+              </label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="••••••••"
+                aria-invalid={!!errors.confirmPassword}
+                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${
+                  errors.confirmPassword ? errorInputClass : ''
+                }`}
+              />
+              {errors.confirmPassword && (
+                <p className="mt-1 text-sm text-red-600" role="alert">
+                  {errors.confirmPassword}
+                </p>
+              )}
+            </div>
+
+            {/* Role Selection */}
+            <div>
+              <span className={labelClass}>Role</span>
+              <div className="flex items-center space-x-4">
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    id="volunteer"
+                    checked={formData.role === 'volunteer'}
+                    onChange={handleRoleChange}
+                    className="mr-2"
+                  />
+                  Volunteer
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    id="admin"
+                    checked={formData.role === 'admin'}
+                    onChange={handleRoleChange}
+                    className="mr-2"
+                  />
+                  Admin
+                </label>
+              </div>
+              {errors.role && (
+                <p className="mt-1 text-sm text-red-600" role="alert">
+                  {errors.role}
                 </p>
               )}
             </div>
