@@ -9,15 +9,15 @@ from app.models.userCredentials import UserCredentials, User_Roles
 from app.utils.tokens import generate_email_token, verify_email_token
 from app.utils.mailer import send_email_confirmation
 
-users_credentials_bp = Blueprint("users_credentials", __name__)
+register_user_bp = Blueprint("register_user", __name__)
 
 
-@users_credentials_bp.route("/test", methods=["GET"])
+@register_user_bp.route("/test", methods=["GET"])
 def test_route():
     return jsonify({"message": "User credentials route is working!"}), 200
 
 
-@users_credentials_bp.route("/register", methods=["POST"])
+@register_user_bp.route("/register", methods=["POST"])
 def register_user():
     """Register a new user.
 
@@ -73,7 +73,7 @@ def register_user():
     )
 
 
-@users_credentials_bp.route("/confirm/<token>", methods=["GET"])
+@register_user_bp.route("/confirm/<token>", methods=["GET"])
 def confirm_email(token: str):
     payload = verify_email_token(token)
     origin = current_app.config.get("FRONTEND_ORIGIN", "/")
