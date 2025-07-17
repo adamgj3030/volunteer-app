@@ -11,7 +11,7 @@ from app.routes.admin import admin_bp
 # from app.routes.converters import converters_bp
 
 blueprint_with_prefixes = {
-    users_profiles_bp: '/users/profiles',
+    users_profiles_bp: '/volunteer/profile',
     register_user_bp: '/auth',
     login_user_bp: '/auth',
     events_bp: '/events',
