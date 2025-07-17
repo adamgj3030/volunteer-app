@@ -6,11 +6,12 @@ from app.models.userProfiles import UserProfiles
 from app.models.volunteerHistory import VolunteerHistory
 from sqlalchemy import and_
 from app.utils.mailer import init_mail
+from flask_jwt_extended import JWTManager
 
 
 migrate = Migrate()
 socketio = SocketIO()  # No config yet
-
+jwt = JWTManager()
 
 
 def create_app(config_object="app.config.DevConfig"):
@@ -32,6 +33,27 @@ def create_app(config_object="app.config.DevConfig"):
     )
     
     init_mail(app)
+    
+    jwt.init_app(app)
+    
+    from app.models.userCredentials import UserCredentials, User_Roles  # local import to avoid circular
+
+    @jwt.user_identity_loader
+    def user_identity_lookup(user: UserCredentials | int):
+        # Accept either a user object or an int id
+        return user.user_id if isinstance(user, UserCredentials) else int(user)
+
+    @jwt.additional_claims_loader
+    def add_claims_to_access_token(identity):
+        # identity is user_id; we need DB access inside app context
+        user = db.session.get(UserCredentials, identity)
+        if not user:
+            return {}
+        return {
+            "email": user.email,
+            "role": user.role.value,
+            "email_confirmed": user.is_email_confirmed,
+        }
 
     for blueprint, prefix in blueprint_with_prefixes.items():
         app.register_blueprint(blueprint, url_prefix=prefix)

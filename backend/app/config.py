@@ -18,6 +18,13 @@ class BaseConfig:
 
     # Where to send users *after* confirming email
     FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173")
+    
+    # JWT (Flask-JWT-Extended style) --------------------------------------
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "change-me-too")  # separate from Flask SECRET_KEY
+    JWT_TOKEN_LOCATION = ["headers"]  # we’ll pass Authorization: Bearer <token>
+    JWT_HEADER_NAME = "Authorization"
+    JWT_HEADER_TYPE = "Bearer"
+    JWT_ACCESS_TOKEN_EXPIRES = 3600  # seconds (1 hour) – adjust as needed
 
 class DevConfig(BaseConfig):
     DEBUG = True
