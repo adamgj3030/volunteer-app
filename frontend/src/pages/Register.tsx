@@ -1,31 +1,57 @@
-'use client';
-
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { registerUser } from '@/lib/api';
 
 interface FormData {
   email: string;
   password: string;
+  confirmPassword: string;
+  role: 'volunteer' | 'admin' | '';
 }
 
-// Reusable class names to DRY up typography
 const headingClass = 'text-2xl font-extrabold text-[var(--color-charcoal-100)]';
 const labelClass = 'block mb-1 text-sm font-medium text-[var(--color-charcoal-300)]';
 const errorInputClass = 'border-red-500 focus-visible:ring-red-200';
 
 const RegisterPage: React.FC = () => {
-  const [formData, setFormData] = useState<FormData>({ email: '', password: '' });
+  const [formData, setFormData] = useState<FormData>({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: '',
+  });
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [showCheckEmail, setShowCheckEmail] = useState(false);
 
   const validate = (): boolean => {
     const newErrors: Partial<FormData> = {};
-    if (!formData.email) newErrors.email = 'Email is required.';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Please enter a valid email.';
-    if (!formData.password) newErrors.password = 'Password is required.';
-    else if (formData.password.length < 6) newErrors.password = 'Minimum length is 6 characters.';
+
+    if (!formData.email) {
+      newErrors.email = 'Email is required.';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email.';
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Password is required.';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Minimum length is 6 characters.';
+    }
+
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password.';
+    } else if (formData.confirmPassword !== formData.password) {
+      newErrors.confirmPassword = 'Passwords do not match.';
+    }
+
+    if (!formData.role) {
+      newErrors.role = 'Please select a role.';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -38,16 +64,33 @@ const RegisterPage: React.FC = () => {
     }
   };
 
+  const handleRoleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      role: prev.role === id ? '' : (id as 'volunteer' | 'admin'),
+    }));
+    if (errors.role) {
+      setErrors(prev => ({ ...prev, role: undefined }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
+    setServerError(null);
+
     try {
-      // TODO: hook up to your /api/register
-      await new Promise(res => setTimeout(res, 1000));
-      // handle successful registration (e.g., redirect to login)
+      await registerUser({
+        email: formData.email,
+        password: formData.password,
+        role: formData.role as 'volunteer' | 'admin',
+      });
+      setShowCheckEmail(true);
     } catch (err) {
-      // TODO: handle API errors (e.g., set form-level error)
+      console.error(err);
+      setServerError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -64,6 +107,12 @@ const RegisterPage: React.FC = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            {serverError && (
+              <div className="p-3 text-sm text-red-700 bg-red-100 rounded-md" role="alert">
+                {serverError}
+              </div>
+            )}
+
             {/* Email */}
             <div>
               <label htmlFor="email" className={labelClass}>
@@ -76,7 +125,9 @@ const RegisterPage: React.FC = () => {
                 onChange={handleChange}
                 placeholder="you@example.com"
                 aria-invalid={!!errors.email}
-                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${errors.email ? errorInputClass : ''}`}
+                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${
+                  errors.email ? errorInputClass : ''
+                }`}
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600" role="alert">
@@ -97,11 +148,68 @@ const RegisterPage: React.FC = () => {
                 onChange={handleChange}
                 placeholder="••••••••"
                 aria-invalid={!!errors.password}
-                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${errors.password ? errorInputClass : ''}`}
+                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${
+                  errors.password ? errorInputClass : ''
+                }`}
               />
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600" role="alert">
                   {errors.password}
+                </p>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label htmlFor="confirmPassword" className={labelClass}>
+                Confirm Password
+              </label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="••••••••"
+                aria-invalid={!!errors.confirmPassword}
+                className={`focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50 ${
+                  errors.confirmPassword ? errorInputClass : ''
+                }`}
+              />
+              {errors.confirmPassword && (
+                <p className="mt-1 text-sm text-red-600" role="alert">
+                  {errors.confirmPassword}
+                </p>
+              )}
+            </div>
+
+            {/* Role Selection */}
+            <div>
+              <span className={labelClass}>Role</span>
+              <div className="flex items-center space-x-4">
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    id="volunteer"
+                    checked={formData.role === 'volunteer'}
+                    onChange={handleRoleChange}
+                    className="mr-2"
+                  />
+                  Volunteer
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    id="admin"
+                    checked={formData.role === 'admin'}
+                    onChange={handleRoleChange}
+                    className="mr-2"
+                  />
+                  Admin
+                </label>
+              </div>
+              {errors.role && (
+                <p className="mt-1 text-sm text-red-600" role="alert">
+                  {errors.role}
                 </p>
               )}
             </div>
@@ -114,16 +222,6 @@ const RegisterPage: React.FC = () => {
             >
               {loading ? 'Creating Account...' : 'Register'}
             </Button>
-
-            {/* Divider */}
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-[var(--color-ash_gray-400)]/40" />
-              </div>
-              <div className="relative flex justify-center text-sm text-[var(--color-charcoal-300)]">
-                {/* Or continue with OAuth */}
-              </div>
-            </div>
           </form>
 
           {/* Sign-in link */}
@@ -138,6 +236,21 @@ const RegisterPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Check Email Modal */}
+      {showCheckEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm p-6 bg-white rounded-xl shadow-xl text-center space-y-4">
+            <h2 className="text-xl font-semibold">Check your email</h2>
+            <p className="text-sm text-gray-600">
+              We've sent a confirmation link to <strong>{formData.email}</strong>. Click the link to activate your account.
+            </p>
+            <Button onClick={() => setShowCheckEmail(false)} className="w-full">
+              Ok
+            </Button>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

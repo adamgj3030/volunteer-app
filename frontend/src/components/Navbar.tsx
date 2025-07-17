@@ -1,29 +1,59 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import logoImage from '@/images/logo.png';
+import { useAuth } from '@/context/AuthContext';
 
-const navItems = [
-  { name: 'Home', href: '/' },
-  { name: 'Login', href: '/login' },
-  { name: 'Register', href: '/register' },
-  { name: 'Volunteer', href: '/volunteer' },
-  { name: 'VolunteerTask', href: '/volunteer/task' },
-  { name: 'VolunteerProfile', href: '/volunteer/manage' },
-  { name: 'Admin', href: '/admin' },
-  { name: 'AdminApproval', href: '/admin/approval' },
-  { name: 'AdminVolunteerHistory', href: '/admin/history' },
-  { name: 'AdminEventCreation', href: '/admin/event/creation' },
-  { name: 'VolunteerMatching', href: '/volunteer/matching' },
-  { name: 'EventMatching', href: '/event/matching' },
-];
+interface NavItem { name: string; href: string; }
+
+function getNavForRole(role: string | null): NavItem[] {
+  if (!role) {
+    return [
+      { name: 'Home', href: '/' },
+      { name: 'Login', href: '/login' },
+      { name: 'Register', href: '/register' },
+    ];
+  }
+  if (role === 'VOLUNTEER') {
+    return [
+      { name: 'Volunteer Home', href: '/volunteer' },
+      { name: 'Tasks', href: '/volunteer/task' },
+      { name: 'Profile', href: '/volunteer/manage' },
+      { name: 'Matching', href: '/volunteer/matching' },
+      { name: 'Events', href: '/event/matching' },
+    ];
+  }
+  if (role === 'ADMIN_PENDING') {
+    return [
+      { name: 'Admin Pending', href: '/admin/approval' },
+      { name: 'Volunteer Home', href: '/volunteer' },
+    ];
+  }
+  // ADMIN
+  return [
+    { name: 'Admin Home', href: '/admin' },
+    { name: 'Approval Queue', href: '/admin/approval' },
+    { name: 'Volunteer History', href: '/admin/history' },
+    { name: 'Create Event', href: '/admin/event/creation' },
+    { name: 'Volunteer Matching', href: '/volunteer/matching' },
+  ];
+}
 
 export default function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const items = getNavForRole(user?.role ?? null);
 
   const isActive = (href: string) => location.pathname === href;
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   return (
     <header className="bg-[var(--color-ash_gray-900)] border-b border-[var(--color-ash_gray-900)] px-8 py-3 flex justify-between items-center shadow-sm">
@@ -33,15 +63,15 @@ export default function Navbar() {
       </Link>
 
       {/* Desktop Navigation */}
-      <nav className="hidden md:flex gap-4">
-        {navItems.map((item) => {
-          const isItemActive = isActive(item.href);
+      <nav className="hidden md:flex gap-4 items-center">
+        {items.map((item) => {
+          const active = isActive(item.href);
           return (
             <Link
               key={item.name}
               to={item.href}
               className={`text-lg font-medium transition-colors rounded px-3 py-1 ${
-                isItemActive
+                active
                   ? 'text-[--color-cambridge_blue-500] underline underline-offset-4'
                   : 'text-[var(--color-charcoal-400)] hover:text-[var(--color-cambridge_blue-400)] hover:bg-[var(--color-ash_gray-700)]'
               }`}
@@ -50,6 +80,9 @@ export default function Navbar() {
             </Link>
           );
         })}
+        {user && (
+          <Button onClick={handleLogout} variant="ghost" className="ml-4 text-sm">Logout</Button>
+        )}
       </nav>
 
       {/* Mobile Navigation */}
@@ -63,14 +96,14 @@ export default function Navbar() {
 
           <SheetContent side="right" className="bg-[var(--color-ash_gray-900)] !backdrop-blur-none">
             <nav className="flex flex-col gap-2 mt-10 px-6">
-              {navItems.map((item) => {
-                const isItemActive = isActive(item.href);
+              {items.map((item) => {
+                const active = isActive(item.href);
                 return (
                   <Link
                     key={item.name}
                     to={item.href}
                     className={`text-lg font-medium rounded px-3 py-2 transition-colors ${
-                      isItemActive
+                      active
                         ? 'text-[--color-cambridge_blue-500] underline underline-offset-4'
                         : 'text-[var(--color-dark_slate_gray-300)] hover:text-[var(--color-cambridge_blue-400)] hover:bg-[var(--color-ash_gray-700)]'
                     }`}
@@ -79,6 +112,9 @@ export default function Navbar() {
                   </Link>
                 );
               })}
+              {user && (
+                <Button onClick={handleLogout} variant="ghost" className="mt-4 text-sm">Logout</Button>
+              )}
             </nav>
           </SheetContent>
         </Sheet>

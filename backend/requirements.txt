@@ -17,3 +17,5 @@ APScheduler
 pytest-cov # pytest code coverage
 pytest-docker # docker support for pytest
 sqlalchemy-utils # helps with testing SQLAlchemy models
+Flask-Mail
+flask-jwt-extended

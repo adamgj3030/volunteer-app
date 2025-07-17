@@ -15,6 +15,7 @@ import VolunteerMatchingPage from './pages/MatchVolunteers.tsx'
 import NotificationsTesting from './pages/NotificationsTesting.tsx';
 import NotificationListener from './components/NotificationListener.tsx';
 import EventMatching from './pages/EventMatching.tsx';
+import { ProtectedRoute }  from '@/components/ProtectedRoute';
 
 function App() {
 
@@ -28,16 +29,16 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login/>}></Route>
           <Route path="/register" element={<RegisterPage/>}></Route>
-          <Route path="/volunteer" element={<VolunteerLanding/>}></Route>
-          <Route path="/volunteer/task" element={<TaskList/>}></Route>
-          <Route path="/volunteer/manage" element={<ProfileForm/>}></Route>
-          <Route path="/volunteer/matching" element={<VolunteerMatchingPage/>}></Route>
-          <Route path="/admin" element={<AdminLanding/>}></Route>
-          <Route path="/admin/approval" element={<AdminManage/>}></Route>
-          <Route path="/admin/history" element={<VolunteerHistory/>}></Route>
-          <Route path="/admin/event/creation" element={<EventForm/>}></Route>
-          <Route path="/notifications" element={<NotificationsTesting/>}></Route>
-          <Route path="/event/matching" element={<EventMatching />} />
+          <Route path="/volunteer" element={<ProtectedRoute allow={['ADMIN', 'VOLUNTEER']}><VolunteerLanding/></ProtectedRoute>} />
+          <Route path="/volunteer/task" element={<ProtectedRoute allow={['ADMIN', 'VOLUNTEER']}><TaskList/></ProtectedRoute>} />
+          <Route path="/volunteer/manage" element={<ProtectedRoute allow={['ADMIN', 'VOLUNTEER']}><ProfileForm/></ProtectedRoute>} />
+          <Route path="/volunteer/matching" element={<ProtectedRoute allow={['ADMIN', 'VOLUNTEER']}><EventMatching /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><AdminLanding /></ProtectedRoute>} />
+          <Route path="/admin/approval" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><AdminManage /></ProtectedRoute>} />
+          <Route path="/admin/history" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><VolunteerHistory /></ProtectedRoute>} />
+          <Route path="/admin/event/creation" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><EventForm /></ProtectedRoute>} />
+          <Route path="/admin/matching" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><VolunteerMatchingPage /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute allow={[]} redirectTo="/login"><NotificationsTesting /></ProtectedRoute>} />
         </Routes>
       </main>
     </Router>
