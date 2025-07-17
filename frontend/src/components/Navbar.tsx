@@ -25,20 +25,16 @@ function getNavForRole(role: string | null): NavItem[] {
       { name: 'Events', href: '/event/matching' },
     ];
   }
-  if (role === 'ADMIN_PENDING') {
+  // ADMIN
+  if (role === 'ADMIN') {
     return [
-      { name: 'Admin Pending', href: '/admin/approval' },
-      { name: 'Volunteer Home', href: '/volunteer' },
+      { name: 'Admin Home', href: '/admin' },
+      { name: 'Approval Queue', href: '/admin/approval' },
+      { name: 'Volunteer History', href: '/admin/history' },
+      { name: 'Create Event', href: '/admin/event/creation' },
+      { name: 'Volunteer Matching', href: '/volunteer/matching' },
     ];
   }
-  // ADMIN
-  return [
-    { name: 'Admin Home', href: '/admin' },
-    { name: 'Approval Queue', href: '/admin/approval' },
-    { name: 'Volunteer History', href: '/admin/history' },
-    { name: 'Create Event', href: '/admin/event/creation' },
-    { name: 'Volunteer Matching', href: '/volunteer/matching' },
-  ];
 }
 
 export default function Navbar() {
