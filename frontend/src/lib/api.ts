@@ -1,5 +1,6 @@
 import type { AuthUser, LoginResponse } from '@/types/auth';
 import type { VolunteerProfile, VolunteerProfileInput, SkillOption, StateOption } from '@/types/profile';
+import type { Volunteer } from '@/types/type';
 
 export interface RegisterPayload {
   email: string;
@@ -132,4 +133,15 @@ export async function patchMyProfile(token: string, partial: Partial<VolunteerPr
     throw err;
   }
   return json.profile as VolunteerProfile;
+}
+
+//------volunteer history
+
+
+export async function fetchVolunteerHistory(): Promise<Volunteer[]> {
+  const res = await fetch(buildUrl("/volunteer/history"), {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to load volunteer history (${res.status})`);
+  return (await res.json()) as Volunteer[];
 }
