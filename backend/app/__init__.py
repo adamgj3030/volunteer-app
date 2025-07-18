@@ -39,14 +39,29 @@ def create_app(config_object="app.config.DevConfig"):
     from app.models.userCredentials import UserCredentials, User_Roles  # local import to avoid circular
 
     @jwt.user_identity_loader
-    def user_identity_lookup(user: UserCredentials | int):
-        # Accept either a user object or an int id
-        return user.user_id if isinstance(user, UserCredentials) else int(user)
+    def user_identity_lookup(user: "UserCredentials | int | str"):
+        """
+        Always return a *string* to satisfy PyJWT's requirement that `sub` be a string.
+        We accept:
+        - a UserCredentials instance
+        - an int id
+        - a string id
+        """
+        if isinstance(user, UserCredentials):
+            return str(user.user_id)
+        return str(user)   # covers int or str
 
     @jwt.additional_claims_loader
-    def add_claims_to_access_token(identity):
-        # identity is user_id; we need DB access inside app context
-        user = db.session.get(UserCredentials, identity)
+    def add_claims_to_access_token(identity: str):
+        """
+        identity arrives as the string we returned above.
+        Cast to int for DB lookups.
+        """
+        try:
+            uid = int(identity)
+        except (TypeError, ValueError):
+            return {}
+        user = db.session.get(UserCredentials, uid)
         if not user:
             return {}
         return {
@@ -54,7 +69,6 @@ def create_app(config_object="app.config.DevConfig"):
             "role": user.role.value,
             "email_confirmed": user.is_email_confirmed,
         }
-
     for blueprint, prefix in blueprint_with_prefixes.items():
         app.register_blueprint(blueprint, url_prefix=prefix)
 
