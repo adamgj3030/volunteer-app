@@ -36,8 +36,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToken(stored.token);
             setUser(u);
           })
-          .catch(() => {
-            window.localStorage.removeItem(STORAGE_KEY);
+          .catch(err => {
+            // If token invalid/expired -> clear
+            if (err?.status === 401 || err?.status === 422) {
+              window.localStorage.removeItem(STORAGE_KEY);
+            }
           })
           .finally(() => setLoading(false));
       } else {

@@ -53,7 +53,7 @@ def login():
         )
 
     # Good login -> issue token --------------------------------------
-    access_token = create_access_token(identity=str(user.user_id))
+    access_token = create_access_token(identity=user.user_id)
 
     payload = user_to_dict(user)
 
@@ -105,7 +105,11 @@ def resend_confirmation():
 @login_user_bp.route("/me", methods=["GET"])
 @jwt_required()
 def me():
-    uid = get_jwt_identity()
+    identity = get_jwt_identity()  # string
+    try:
+        uid = int(identity)
+    except (TypeError, ValueError):
+        return jsonify({"error": "bad_identity"}), 400
     user = UserCredentials.query.get(uid)
     if not user:
         return jsonify({"error": "not_found"}), 404

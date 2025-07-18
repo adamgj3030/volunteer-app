@@ -57,9 +57,20 @@ export async function loginUser(email: string, password: string): Promise<LoginR
 
 export async function fetchMe(token: string): Promise<AuthUser> {
   const res = await fetch(buildUrl('/auth/me'), {
-    headers: { 'Authorization': `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw new Error('Failed to restore session');
+
+  if (!res.ok) {
+    let msg = 'Failed to restore session';
+    try {
+      const j = await res.json();
+      msg = j.message || j.error || msg;
+    } catch {/* ignore */}
+    const err: any = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
+
   const json = await res.json();
   return json.user as AuthUser;
 }
