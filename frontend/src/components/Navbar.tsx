@@ -22,7 +22,6 @@ function getNavForRole(role: string | null): NavItem[] {
       { name: 'Tasks', href: '/volunteer/task' },
       { name: 'Profile', href: '/volunteer/manage' },
       { name: 'Matching', href: '/volunteer/matching' },
-      { name: 'Events', href: '/event/matching' },
     ];
   }
   // ADMIN
@@ -32,7 +31,7 @@ function getNavForRole(role: string | null): NavItem[] {
       { name: 'Approval Queue', href: '/admin/approval' },
       { name: 'Volunteer History', href: '/admin/history' },
       { name: 'Create Event', href: '/admin/event/creation' },
-      { name: 'Volunteer Matching', href: '/volunteer/matching' },
+      { name: 'Volunteer Matching', href: '/admin/matching' },
     ];
   }
 }

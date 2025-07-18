@@ -53,7 +53,7 @@ def login():
         )
 
     # Good login -> issue token --------------------------------------
-    access_token = create_access_token(identity=user.user_id)
+    access_token = create_access_token(identity=str(user.user_id))
 
     payload = user_to_dict(user)
 
