@@ -7,7 +7,7 @@ A full‑stack volunteer management site built with React / TypeScript (front‑
 ## 🚀 Prerequisites
 
 - **Node.js** ≥ 16 & **npm** (or Yarn)
-- **Python** ≥ 3.10 & **pip**
+- **Python** ≥ 3.11 & **pip**
 - **PostgreSQL** (e.g. via [pgAdmin4](https://www.pgadmin.org/))
 - **Docker Desktop** (for MailHog)
 
