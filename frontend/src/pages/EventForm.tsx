@@ -20,10 +20,69 @@ import {
 import { Calendar } from "@/components/ui/calendar"
 import { Button } from "@/components/ui/button"
 
+// List of US states for the State dropdown
+type StateOption = { value: string; label: string }
+const US_STATES: StateOption[] = [
+  { value: "AL", label: "Alabama" },
+  { value: "AK", label: "Alaska" },
+  { value: "AZ", label: "Arizona" },
+  { value: "AR", label: "Arkansas" },
+  { value: "CA", label: "California" },
+  { value: "CO", label: "Colorado" },
+  { value: "CT", label: "Connecticut" },
+  { value: "DE", label: "Delaware" },
+  { value: "FL", label: "Florida" },
+  { value: "GA", label: "Georgia" },
+  { value: "HI", label: "Hawaii" },
+  { value: "ID", label: "Idaho" },
+  { value: "IL", label: "Illinois" },
+  { value: "IN", label: "Indiana" },
+  { value: "IA", label: "Iowa" },
+  { value: "KS", label: "Kansas" },
+  { value: "KY", label: "Kentucky" },
+  { value: "LA", label: "Louisiana" },
+  { value: "ME", label: "Maine" },
+  { value: "MD", label: "Maryland" },
+  { value: "MA", label: "Massachusetts" },
+  { value: "MI", label: "Michigan" },
+  { value: "MN", label: "Minnesota" },
+  { value: "MS", label: "Mississippi" },
+  { value: "MO", label: "Missouri" },
+  { value: "MT", label: "Montana" },
+  { value: "NE", label: "Nebraska" },
+  { value: "NV", label: "Nevada" },
+  { value: "NH", label: "New Hampshire" },
+  { value: "NJ", label: "New Jersey" },
+  { value: "NM", label: "New Mexico" },
+  { value: "NY", label: "New York" },
+  { value: "NC", label: "North Carolina" },
+  { value: "ND", label: "North Dakota" },
+  { value: "OH", label: "Ohio" },
+  { value: "OK", label: "Oklahoma" },
+  { value: "OR", label: "Oregon" },
+  { value: "PA", label: "Pennsylvania" },
+  { value: "RI", label: "Rhode Island" },
+  { value: "SC", label: "South Carolina" },
+  { value: "SD", label: "South Dakota" },
+  { value: "TN", label: "Tennessee" },
+  { value: "TX", label: "Texas" },
+  { value: "UT", label: "Utah" },
+  { value: "VT", label: "Vermont" },
+  { value: "VA", label: "Virginia" },
+  { value: "WA", label: "Washington" },
+  { value: "WV", label: "West Virginia" },
+  { value: "WI", label: "Wisconsin" },
+  { value: "WY", label: "Wyoming" },
+]
+
+// Other constants
 type EventFormValues = {
   eventName: string
   eventDescription: string
-  location: string
+  address: string
+  city: string
+  state: string
+  zipcode: string
   requiredSkills: string[]
   urgency: string
   eventDate: Date | null
@@ -43,25 +102,23 @@ const URGENCY_OPTIONS = [
   { value: "critical", label: "Critical" },
 ]
 
-// Reusable classes
 const labelClass =
   "block mb-1 text-sm font-medium text-[var(--color-charcoal-300)]"
 const errorInputClass = "border-red-500 focus-visible:ring-red-200"
-
-// Force all typed text to be black
 const inputClass =
   "w-full p-2 border border-[var(--color-ash_gray-400)] bg-white text-black rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50"
 const textareaClass = `${inputClass} resize-none`
 const selectTriggerClass = `${inputClass} py-2`
-
-// Button styles (with centered text)
 const buttonClass =
   "px-6 py-3 bg-[var(--color-cambridge_blue-500)] hover:bg-[var(--color-cambridge_blue-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-400)] disabled:opacity-50 rounded-lg text-white mx-auto flex justify-center"
 
 const defaultValues: EventFormValues = {
   eventName: "",
   eventDescription: "",
-  location: "",
+  address: "",
+  city: "",
+  state: "",
+  zipcode: "",
   requiredSkills: [],
   urgency: "",
   eventDate: null,
@@ -94,9 +151,8 @@ export default function EventForm() {
   }
 
   function onEdit(idx: number) {
-    const ev = events[idx]
     setEditingIndex(idx)
-    reset(ev)
+    reset(events[idx])
   }
 
   return (
@@ -119,9 +175,7 @@ export default function EventForm() {
                     <Input
                       {...field}
                       placeholder="My Awesome Event"
-                      className={`${inputClass} ${
-                        errors.eventName ? errorInputClass : ""
-                      }`}
+                      className={`${inputClass} ${errors.eventName ? errorInputClass : ""}`}
                     />
                   </FormControl>
                   <FormMessage />
@@ -141,9 +195,7 @@ export default function EventForm() {
                     <Textarea
                       {...field}
                       placeholder="Describe the event..."
-                      className={`${textareaClass} ${
-                        errors.eventDescription ? errorInputClass : ""
-                      }`}
+                      className={`${textareaClass} ${errors.eventDescription ? errorInputClass : ""}`}
                     />
                   </FormControl>
                   <FormMessage />
@@ -151,21 +203,89 @@ export default function EventForm() {
               )}
             />
 
-            {/* 3. Location */}
+            {/* 3a. Street Address */}
             <FormField
               control={control}
-              name="location"
-              rules={{ required: "Location is required" }}
+              name="address"
+              rules={{ required: "Street address is required" }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className={labelClass}>Location</FormLabel>
+                  <FormLabel className={labelClass}>Street Address</FormLabel>
                   <FormControl>
-                    <Textarea
+                    <Input
                       {...field}
-                      placeholder="123 Main St, City, State"
-                      className={`${textareaClass} ${
-                        errors.location ? errorInputClass : ""
-                      }`}
+                      placeholder="123 Main St"
+                      className={`${inputClass} ${errors.address ? errorInputClass : ""}`}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 3b. City */}
+            <FormField
+              control={control}
+              name="city"
+              rules={{ required: "City is required" }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className={labelClass}>City</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="Houston"
+                      className={`${inputClass} ${errors.city ? errorInputClass : ""}`}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 3c. State */}
+            <FormField
+              control={control}
+              name="state"
+              rules={{ required: "State is required" }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className={labelClass}>State</FormLabel>
+                  <FormControl>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={`${selectTriggerClass} ${errors.state ? errorInputClass : ""}`}>   
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {US_STATES.map((st) => (
+                          <SelectItem key={st.value} value={st.value}>
+                            {st.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 3d. ZIP Code */}
+            <FormField
+              control={control}
+              name="zipcode"
+              rules={{
+                required: "ZIP code is required",
+                pattern: { value: /^\d{5}$/, message: "Must be 5 digits" },
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className={labelClass}>ZIP Code</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="77005"
+                      className={`${inputClass} ${errors.zipcode ? errorInputClass : ""}`}
                     />
                   </FormControl>
                   <FormMessage />
@@ -182,16 +302,8 @@ export default function EventForm() {
                 <FormItem>
                   <FormLabel className={labelClass}>Required Skills</FormLabel>
                   <FormControl>
-                    <Select
-                      multiple
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <SelectTrigger
-                        className={`${selectTriggerClass} ${
-                          errors.requiredSkills ? errorInputClass : ""
-                        }`}
-                      >
+                    <Select multiple value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={`${selectTriggerClass} ${errors.requiredSkills ? errorInputClass : ""}`}>   
                         <SelectValue placeholder="Choose skills..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -218,11 +330,7 @@ export default function EventForm() {
                   <FormLabel className={labelClass}>Urgency</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger
-                        className={`${selectTriggerClass} ${
-                          errors.urgency ? errorInputClass : ""
-                        }`}
-                      >
+                      <SelectTrigger className={`${selectTriggerClass} ${errors.urgency ? errorInputClass : ""}`}>   
                         <SelectValue placeholder="Select urgency" />
                       </SelectTrigger>
                       <SelectContent>
@@ -266,30 +374,27 @@ export default function EventForm() {
         </Form>
 
         {/* Saved Events List */}
-<div className="mt-8">
-  <h2 className="text-xl font-bold mb-2">Saved Events</h2>
-  {events.length === 0 ? (
-    <p className="text-sm text-black">
-      No events yet.
-    </p>
-  ) : (
-    <ul className="space-y-2">
-      {events.map((e, i) => (
-        <li
-          key={i}
-          onClick={() => onEdit(i)}
-          className="cursor-pointer p-3 border rounded hover:bg-gray-100 transition-colors duration-150"
-        >
-          <strong>{e.eventName}</strong>{" "}
-          {/* make date darker: */}
-          <span className="text-sm font-semibold text-black">
-            ({e.eventDate?.toLocaleDateString()})
-          </span>
-        </li>
-      ))}
-    </ul>
-  )}
-</div>
+        <div className="mt-8">
+          <h2 className="text-xl font-bold mb-2">Saved Events</h2>
+          {events.length === 0 ? (
+            <p className="text-sm text-black">No events yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {events.map((e, i) => (
+                <li
+                  key={i}
+                  onClick={() => onEdit(i)}
+                  className="cursor-pointer p-3 border rounded hover:bg-gray-100 transition-colors duration-150"
+                >
+                  <strong>{e.eventName}</strong> <br />
+                  <span className="text-sm font-semibold text-black">
+                    ({e.eventDate?.toLocaleDateString()}) &mdash; {e.address}, {e.city}, {e.state} {e.zipcode}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </main>
   )
