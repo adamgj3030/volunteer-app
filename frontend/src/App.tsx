@@ -26,27 +26,7 @@ function App() {
       <NotificationListener />
       <main>
         <Routes>
-              <Route path="/" element={<LandingPage />} />
-
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<RegisterPage />} />
-
-      {/* Volunteer pages (no more ProtectedRoute) */}
-      <Route path="/volunteer"           element={<VolunteerLanding />} />
-      <Route path="/volunteer/task"      element={<TaskList />} />
-      <Route path="/volunteer/manage"    element={<ProfileForm />} />
-      <Route path="/volunteer/matching"  element={<EventMatching />} />
-
-      {/* Admin pages */}
-      <Route path="/admin"               element={<AdminLanding />} />
-      <Route path="/admin/approval"      element={<AdminManage />} />
-      <Route path="/admin/history"       element={<VolunteerHistory />} />
-      <Route path="/admin/event/creation" element={<EventForm />} />
-      <Route path="/admin/matching"      element={<VolunteerMatchingPage />} />
-
-      {/* Misc */}
-      <Route path="/notifications"       element={<NotificationsTesting />} />
-          {/* <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login/>}></Route>
           <Route path="/register" element={<RegisterPage/>}></Route>
           <Route path="/volunteer" element={<ProtectedRoute allow={['ADMIN', 'VOLUNTEER']}><VolunteerLanding/></ProtectedRoute>} />
@@ -58,7 +38,7 @@ function App() {
           <Route path="/admin/history" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><VolunteerHistory /></ProtectedRoute>} />
           <Route path="/admin/event/creation" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><EventForm /></ProtectedRoute>} />
           <Route path="/admin/matching" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><VolunteerMatchingPage /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute allow={[]} redirectTo="/login"><NotificationsTesting /></ProtectedRoute>} /> */}
+          <Route path="/notifications" element={<ProtectedRoute allow={[]} redirectTo="/login"><NotificationsTesting /></ProtectedRoute>} />
         </Routes>
       </main>
     </Router>
