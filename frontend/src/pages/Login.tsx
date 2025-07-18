@@ -87,6 +87,9 @@ const LoginPage: React.FC = () => {
       if (code === 'email_unconfirmed') {
         setAlertMsg(err?.message || 'Please confirm your email.');
         setAlertType('error');
+      } else if (code === 'admin_pending') {
+        setAlertMsg(err?.message || 'Your admin account is still pending approval.')
+        setAlertType('info')
       } else if (code === 'invalid_login') {
         setAlertMsg('Invalid email or password.');
         setAlertType('error');
