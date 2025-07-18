@@ -4,7 +4,7 @@ class States(db.Model):
     __tablename__ = "states"
 
     state_id = db.Column(db.String(2), primary_key=True, nullable=False)
-    name = db.Column(db.String(13), nullable=False)
+    name = db.Column(db.String(14), nullable=False)
 
 us_states = [
     ("AL", "Alabama"), ("AK", "Alaska"), ("AZ", "Arizona"), ("AR", "Arkansas"), ("CA", "California"),
