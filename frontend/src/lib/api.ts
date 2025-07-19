@@ -147,17 +147,40 @@ export async function fetchVolunteerHistory(): Promise<Volunteer[]> {
 }
 
 //------volunteer matching
+// ――― fetch suggestions for a given event ―――
 export async function fetchVolunteerMatching(
   eventId: string
 ): Promise<Volunteer[]> {
-  // make sure this is exactly "/volunteer/matching"
   const url = `${buildUrl("/volunteer/matching")}?eventId=${encodeURIComponent(eventId)}`;
-  console.log("🔍 fetching matches from", url);
   const res = await fetch(url, { credentials: "include" });
-  if (!res.ok) {
-    throw new Error(`Failed to load volunteer matching (${res.status})`);
-  }
-  const json = (await res.json()) as Volunteer[];
-  console.log("✅ matches response:", json);
-  return json;
+  if (!res.ok) throw new Error(`Failed to load matches (${res.status})`);
+  return (await res.json()) as Volunteer[];
+}
+
+// ――― save a chosen match ―――
+export async function saveVolunteerMatch(data: {
+  matchedEventId: string;
+  volunteerId: string;
+}): Promise<void> {
+  const res = await fetch(buildUrl("/volunteer/matching"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      eventId:     data.matchedEventId,
+      volunteerId: data.volunteerId,
+    }),
+  });
+  if (!res.ok) throw new Error(`Failed to save match (${res.status})`);
+}
+
+// ――― optional: fetch the list of matches you’ve saved ―――
+export async function fetchSavedMatches(): Promise<
+  { eventId: string; volunteerId: string }[]
+> {
+  const res = await fetch(buildUrl("/volunteer/matching/saved"), {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to load saved matches (${res.status})`);
+  return (await res.json()) as { eventId: string; volunteerId: string }[];
 }

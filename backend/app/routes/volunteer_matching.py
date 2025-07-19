@@ -37,8 +37,15 @@ _EVENTS = [
     },
 ]
 
+# ――― In‐memory store for saved matches ―――
+_SAVED_MATCHES: list[dict] = []
+
 @volunteer_matching_bp.route("", methods=["GET"])
 def get_volunteer_matches():
+    """
+    GET /volunteer/matching?eventId=<id>
+    Returns volunteers scored by availability & skill-match count.
+    """
     event_id = request.args.get("eventId")
     if not event_id:
         return jsonify([]), 400
@@ -54,3 +61,33 @@ def get_volunteer_matches():
 
     ranked = sorted(_VOLUNTEERS, key=score, reverse=True)
     return jsonify(ranked)
+
+
+@volunteer_matching_bp.route("", methods=["POST"])
+def save_volunteer_match():
+    """
+    POST /volunteer/matching
+    Body JSON: { eventId: string, volunteerId: string }
+    Stores the match in memory.
+    """
+    data = request.get_json() or {}
+    event_id     = data.get("eventId")
+    volunteer_id = data.get("volunteerId")
+
+    if not event_id or not volunteer_id:
+        return jsonify({"error": "eventId and volunteerId are required"}), 400
+
+    _SAVED_MATCHES.append({
+        "eventId":     event_id,
+        "volunteerId": volunteer_id,
+    })
+    return jsonify({"saved": {"eventId": event_id, "volunteerId": volunteer_id}}), 201
+
+
+@volunteer_matching_bp.route("/saved", methods=["GET"])
+def list_saved_matches():
+    """
+    GET /volunteer/matching/saved
+    Returns all the matches saved so far.
+    """
+    return jsonify(_SAVED_MATCHES)
