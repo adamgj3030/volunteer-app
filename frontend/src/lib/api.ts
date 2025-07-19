@@ -145,3 +145,19 @@ export async function fetchVolunteerHistory(): Promise<Volunteer[]> {
   if (!res.ok) throw new Error(`Failed to load volunteer history (${res.status})`);
   return (await res.json()) as Volunteer[];
 }
+
+//------volunteer matching
+export async function fetchVolunteerMatching(
+  eventId: string
+): Promise<Volunteer[]> {
+  // make sure this is exactly "/volunteer/matching"
+  const url = `${buildUrl("/volunteer/matching")}?eventId=${encodeURIComponent(eventId)}`;
+  console.log("🔍 fetching matches from", url);
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) {
+    throw new Error(`Failed to load volunteer matching (${res.status})`);
+  }
+  const json = (await res.json()) as Volunteer[];
+  console.log("✅ matches response:", json);
+  return json;
+}
