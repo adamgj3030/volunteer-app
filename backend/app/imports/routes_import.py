@@ -22,5 +22,6 @@ blueprint_with_prefixes = {
     admin_bp: '/admin',
     task_list_bp: '/tasks',
     volunteer_matching_bp: '/volunteer/matching',
+    
     # converters_bp: '/converters'  # Uncomment if converters are needed
 }

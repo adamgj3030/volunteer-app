@@ -1,7 +1,11 @@
-'use client';
-
-import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+// src/pages/MatchVolunteers.tsx
+import React, { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import {
+  fetchVolunteerMatching,
+  saveVolunteerMatch,
+  fetchSavedMatches,
+} from "@/lib/api";
 import {
   Form,
   FormField,
@@ -9,188 +13,271 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-} from '@/components/ui/form';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+} from "@/components/ui/form";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-// Simplified types for matching form requirements
-interface Volunteer {
-  id: string;
-  fullName: string;
-  skills: string[];
-  availability: string[];
-}
-
-interface Event {
-  id: string;
-  name: string;
-  requiredSkills: string[];
-  urgency: 'High' | 'Medium' | 'Low';
-  date: string;
-}
+import type { Volunteer, Event } from "@/types/type";
 
 type VolunteerMatchFormValues = {
-  volunteerId: string;
   matchedEventId: string;
-};
-
-// Urgency ranking for sorting recommendations
-const urgencyRank: Record<Event['urgency'], number> = {
-  High: 1,
-  Medium: 2,
-  Low: 3,
+  volunteerId: string;
 };
 
 export default function VolunteerMatchingPage() {
-  // TODO: replace with real API calls
-  const volunteers: Volunteer[] = [
-    { id: 'v1', fullName: 'Alice Johnson', skills: ['Cleaning'], availability: ['2025-07-10'] },
-    { id: 'v2', fullName: 'Bob Smith', skills: ['Cooking'], availability: ['2025-07-11'] },
-    { id: 'v3', fullName: 'Carol Lee', skills: ['Planting'], availability: ['2025-07-12'] },
-  ];
-  const events: Event[] = [
-    { id: 'e1', name: 'Community Clean-Up', requiredSkills: ['Cleaning'], urgency: 'High', date: '2025-07-10' },
-    { id: 'e2', name: 'Food Drive', requiredSkills: ['Cooking'], urgency: 'Medium', date: '2025-07-11' },
-    { id: 'e3', name: 'Tree Planting', requiredSkills: ['Planting'], urgency: 'Low', date: '2025-07-12' },
-  ];
+  const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+  const [savedMatches, setSavedMatches] = useState<
+    { eventId: string; volunteerId: string }[]
+  >([]);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const form = useForm<VolunteerMatchFormValues>({ defaultValues: { volunteerId: '', matchedEventId: '' } });
-  const selectedVolunteerId = form.watch('volunteerId');
+  const [events] = useState<Event[]>([
+    {
+      id: "e1",
+      name: "Community Clean-Up",
+      requiredSkills: ["Cleaning"],
+      urgency: "High",
+      date: "2025-07-10",
+    },
+    {
+      id: "e2",
+      name: "Food Drive",
+      requiredSkills: ["Cooking"],
+      urgency: "Medium",
+      date: "2025-07-11",
+    },
+    {
+      id: "e3",
+      name: "Tree Planting",
+      requiredSkills: ["Planting"],
+      urgency: "Low",
+      date: "2025-07-12",
+    },
+    // …more events
+  ]);
 
-  // Auto-pick best matching event whenever volunteer changes
+  const form = useForm<VolunteerMatchFormValues>({
+    defaultValues: { matchedEventId: "", volunteerId: "" },
+  });
+  const selectedEventId = form.watch("matchedEventId");
+
+  // fetch & rank volunteers when event changes
   useEffect(() => {
-    const volunteer = volunteers.find((v) => v.id === selectedVolunteerId);
-    if (volunteer) {
-      const recommended = events
-        .filter(
-          (e) =>
-            e.requiredSkills.every((skill) => volunteer.skills.includes(skill)) &&
-            volunteer.availability.includes(e.date)
-        )
-        .sort((a, b) => urgencyRank[a.urgency] - urgencyRank[b.urgency]);
-      form.setValue('matchedEventId', recommended[0]?.id || '');
-    } else {
-      form.setValue('matchedEventId', '');
+    if (!selectedEventId) {
+      setVolunteers([]);
+      form.setValue("volunteerId", "");
+      return;
     }
-  }, [selectedVolunteerId, form]);
+    fetchVolunteerMatching(selectedEventId)
+      .then((list) => {
+        setVolunteers(list);
+        form.setValue("volunteerId", list[0]?.id || "");
+      })
+      .catch((err) => console.error(err));
+  }, [selectedEventId, form]);
 
-  const onSubmit = (data: VolunteerMatchFormValues) => {
-    console.log('Matched:', data);
-    // TODO: POST data to backend
+  // load saved matches on mount
+  useEffect(() => {
+    fetchSavedMatches()
+      .then(setSavedMatches)
+      .catch((err) => console.error("Failed to load saved matches:", err));
+  }, []);
+
+  // handle form submit
+  const onSubmit = async (data: VolunteerMatchFormValues) => {
+    setIsSaving(true);
+    try {
+      await saveVolunteerMatch({
+        matchedEventId: data.matchedEventId,
+        volunteerId: data.volunteerId,
+      });
+      // append to local state
+      setSavedMatches((prev) => [
+        ...prev,
+        { eventId: data.matchedEventId, volunteerId: data.volunteerId },
+      ]);
+      alert("Match saved!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save match");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // Find objects for display
-  const selectedVolunteer = volunteers.find((v) => v.id === form.getValues('volunteerId'));
-  const selectedEvent = events.find((e) => e.id === form.getValues('matchedEventId'));
+  const selectedEvent = events.find((e) => e.id === selectedEventId);
+  const selectedVolunteer = volunteers.find(
+    (v) => v.id === form.getValues("volunteerId")
+  );
 
   return (
-    <main className="min-h-screen bg-[var(--color-ash_gray-500)] text-[var(--color-dark_slate_gray-900)] flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-[var(--color-white)] dark:bg-[var(--color-dark_slate_gray-900)] shadow-xl rounded-2xl p-6 transition-shadow hover:shadow-[0_8px_24px_-4px_rgba(82,121,111,0.1)]">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-extrabold text-[var(--color-charcoal-100)]">Volunteer Matching</CardTitle>
+    <main className="min-h-screen bg-[var(--color-ash_gray-500)] flex items-center justify-center p-4">
+      <Card className="w-full max-w-2xl bg-white shadow-xl rounded-2xl">
+        <CardHeader className="py-6 text-center">
+          <CardTitle className="text-3xl font-extrabold">
+            Volunteer Matching
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6 p-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-
-              {/* Volunteer selection via button list */}
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              {/* Event selection */}
               <FormField
                 control={form.control}
-                name="volunteerId"
-                rules={{ required: 'Please select a volunteer' }}
+                name="matchedEventId"
+                rules={{ required: "Please select an event" }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[var(--color-charcoal-300)]">Volunteer Name</FormLabel>
+                    <FormLabel>Event</FormLabel>
                     <FormControl>
                       <div className="grid gap-2">
-                        {volunteers.map((v) => (
+                        {events.map((e) => (
                           <button
-                            key={v.id}
+                            key={e.id}
                             type="button"
-                            onClick={() => field.onChange(v.id)}
-                            className={`w-full text-left p-2 border rounded-lg focus:outline-none \
-                              ${
-                                field.value === v.id
-                                  ? 'border-[var(--color-cambridge_blue-500)] bg-[var(--color-cambridge_blue-50)]'
-                                  : 'border-[var(--color-ash_gray-400)] bg-[var(--color-white)]'
-                              }
-                            `}
+                            onClick={() => field.onChange(e.id)}
+                            className={`w-full p-3 text-left border rounded-lg ${
+                              field.value === e.id
+                                ? "border-green-600 bg-green-50"
+                                : "border-gray-300 bg-white"
+                            }`}
                           >
-                            {v.fullName}
+                            {e.name} ({e.urgency}) — {e.date}
                           </button>
                         ))}
                       </div>
                     </FormControl>
-                    <FormMessage className="text-red-600" />
+                    <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {/* Display selected volunteer details */}
-              {selectedVolunteer && (
-                <div className="p-4 bg-[var(--color-white)] border border-[var(--color-ash_gray-300)] rounded-lg">
-                  <p><strong>Skills:</strong> {selectedVolunteer.skills.join(', ')}</p>
-                  <p><strong>Availability:</strong> {selectedVolunteer.availability.join(', ')}</p>
+              {/* Event details */}
+              {selectedEvent && (
+                <div className="p-4 bg-white border rounded-lg">
+                  <p>
+                    <strong>Required Skills:</strong>{" "}
+                    {selectedEvent.requiredSkills.join(", ")}
+                  </p>
+                  <p>
+                    <strong>Urgency:</strong> {selectedEvent.urgency}
+                  </p>
+                  <p>
+                    <strong>Date:</strong> {selectedEvent.date}
+                  </p>
                 </div>
               )}
 
-              {/* Event selection via button list */}
+              {/* Suggested volunteers */}
               <FormField
                 control={form.control}
-                name="matchedEventId"
-                rules={{ required: 'No matching event found' }}
+                name="volunteerId"
+                rules={{ required: "Please select a volunteer" }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[var(--color-charcoal-300)]">Matched Event</FormLabel>
+                    <FormLabel>Suggested Volunteers</FormLabel>
                     <FormControl>
-                      <div className="grid gap-2">
-                        {events
-                          .filter((e) =>
-                            selectedVolunteer
-                              ? e.requiredSkills.every((skill) => selectedVolunteer.skills.includes(skill)) && selectedVolunteer.availability.includes(e.date)
-                              : true
-                          )
-                          .sort((a, b) => urgencyRank[a.urgency] - urgencyRank[b.urgency])
-                          .map((e) => (
-                            <button
-                              key={e.id}
-                              type="button"
-                              onClick={() => field.onChange(e.id)}
-                              className={`w-full text-left p-2 border rounded-lg focus:outline-none \
-                                ${
-                                  field.value === e.id
-                                    ? 'border-[var(--color-cambridge_blue-500)] bg-[var(--color-cambridge_blue-50)]'
-                                    : 'border-[var(--color-ash_gray-400)] bg-[var(--color-white)]'
-                                }
-                              `}
-                            >
-                              {e.name} ({e.urgency}) - {e.date}
-                            </button>
-                          ))}
+                      <div className="border rounded-lg max-h-60 overflow-y-auto">
+                        <Table>
+                          <TableCaption className="sr-only">
+                            Suggested volunteers (click to select)
+                          </TableCaption>
+                          <TableHeader>
+                            <TableRow className="bg-gray-100">
+                              <TableHead>Name</TableHead>
+                              <TableHead>Skills</TableHead>
+                              <TableHead>Availability</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {volunteers.map((v) => (
+                              <TableRow
+                                key={v.id}
+                                onClick={() => field.onChange(v.id)}
+                                className={`cursor-pointer ${
+                                  field.value === v.id
+                                    ? "bg-green-50"
+                                    : "hover:bg-gray-50"
+                                }`}
+                              >
+                                <TableCell className="font-medium">
+                                  {v.fullName}
+                                </TableCell>
+                                <TableCell>
+                                  {v.skills.join(", ")}
+                                </TableCell>
+                                <TableCell>
+                                  {v.availability.join(", ")}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     </FormControl>
-                    <FormMessage className="text-red-600" />
+                    <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {/* Display selected event details */}
-              {selectedEvent && (
-                <div className="p-4 bg-[var(--color-white)] border border-[var(--color-ash_gray-300)] rounded-lg">
-                  <p><strong>Required Skills:</strong> {selectedEvent.requiredSkills.join(', ')}</p>
-                  <p><strong>Urgency:</strong> {selectedEvent.urgency}</p>
-                  <p><strong>Date:</strong> {selectedEvent.date}</p>
+              {/* Volunteer details */}
+              {selectedVolunteer && (
+                <div className="p-4 bg-white border rounded-lg">
+                  <p>
+                    <strong>Skills:</strong>{" "}
+                    {selectedVolunteer.skills.join(", ")}
+                  </p>
+                  <p>
+                    <strong>Availability:</strong>{" "}
+                    {selectedVolunteer.availability.join(", ")}
+                  </p>
                 </div>
               )}
 
-              <Button
-                type="submit"
-                className="w-full bg-[var(--color-cambridge_blue-500)] hover:bg-[var(--color-cambridge_blue-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-400)] disabled:opacity-50"
-              >
-                Save Match
+              <Button type="submit" className="w-full" disabled={isSaving}>
+                {isSaving ? "Saving…" : "Save Match"}
               </Button>
             </form>
           </Form>
+
+          {/* Saved matches list */}
+          <div className="mt-8">
+            <h2 className="text-xl font-bold">Saved Matches</h2>
+            {savedMatches.length === 0 ? (
+              <p className="text-gray-500">No matches saved yet.</p>
+            ) : (
+              <div className="border rounded-lg max-h-60 overflow-y-auto mt-2">
+                <Table>
+                  <TableCaption className="sr-only">
+                    List of saved matches
+                  </TableCaption>
+                  <TableHeader>
+                    <TableRow className="bg-gray-100">
+                      <TableHead>Event ID</TableHead>
+                      <TableHead>Volunteer ID</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {savedMatches.map((m, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{m.eventId}</TableCell>
+                        <TableCell>{m.volunteerId}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </main>

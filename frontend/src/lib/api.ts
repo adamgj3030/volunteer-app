@@ -146,7 +146,7 @@ export async function patchMyProfile(token: string, partial: Partial<VolunteerPr
   return json.profile as VolunteerProfile;
 }
 
-//------volunteer history
+//------volunteer history (admin sided)
 
 
 export async function fetchVolunteerHistory(): Promise<Volunteer[]> {
@@ -156,3 +156,76 @@ export async function fetchVolunteerHistory(): Promise<Volunteer[]> {
   if (!res.ok) throw new Error(`Failed to load volunteer history (${res.status})`);
   return (await res.json()) as Volunteer[];
 }
+
+//------volunteer matching (admin sided )
+// ――― fetch suggestions for a given event ―――
+export async function fetchVolunteerMatching(
+  eventId: string
+): Promise<Volunteer[]> {
+  const url = `${buildUrl("/volunteer/matching")}?eventId=${encodeURIComponent(eventId)}`;
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) throw new Error(`Failed to load matches (${res.status})`);
+  return (await res.json()) as Volunteer[];
+}
+
+// ――― save a chosen match ―――
+export async function saveVolunteerMatch(data: {
+  matchedEventId: string;
+  volunteerId: string;
+}): Promise<void> {
+  const res = await fetch(buildUrl("/volunteer/matching"), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      eventId:     data.matchedEventId,
+      volunteerId: data.volunteerId,
+    }),
+  });
+  if (!res.ok) throw new Error(`Failed to save match (${res.status})`);
+}
+
+// ――― optional: fetch the list of matches you’ve saved ―――
+export async function fetchSavedMatches(): Promise<
+  { eventId: string; volunteerId: string }[]
+> {
+  const res = await fetch(buildUrl("/volunteer/matching/saved"), {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to load saved matches (${res.status})`);
+  return (await res.json()) as { eventId: string; volunteerId: string }[];
+}
+
+
+//------- volunteer tasks (volunteer sided)
+export type Task = {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  status: "assigned" | "registered" | "completed";
+  assignee: string;
+};
+
+// Fetch the volunteer’s tasks (assigned, registered, completed)
+export async function fetchVolunteerTasks(): Promise<Task[]> {
+  const res = await fetch(buildUrl("/tasks"));
+  if (!res.ok) throw new Error("Failed to load volunteer tasks");
+  return (await res.json()) as Task[];
+}
+
+// Update a task’s status (register, cancel, etc.)
+export async function updateTaskStatus(
+  taskId: string,
+  status: Task["status"]
+): Promise<void> {
+  const res = await fetch(buildUrl("/tasks/status"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ taskId, status }),
+  });
+  if (!res.ok) throw new Error("Failed to update task status");
+}
+//---------------------------------------------------------------------
