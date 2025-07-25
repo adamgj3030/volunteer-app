@@ -1,11 +1,18 @@
-`use client`;
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-// --- Type Definitions ---
+// Same API used by EventForm.tsx
+import {
+  listUpcoming as listUpcomingEvents,
+  listPast as listPastEvents,
+  type Event as APIEvent,
+} from '@/lib/events';
+
+// --- UI Type Definitions ---
 interface Profile {
   id: string;
   fullName: string;
@@ -28,58 +35,117 @@ interface Event {
   name: string;
   requiredSkills: string[];
   urgency: 'High' | 'Medium' | 'Low';
-  date: string; // ISO date
+  date: string; // YYYY-MM-DD
   location: string;
 }
 
 const urgencyOptions: Event['urgency'][] = ['High', 'Medium', 'Low'];
 
-// Urgency ranking for sorting events
 const urgencyRank: Record<Event['urgency'], number> = {
   High: 1,
   Medium: 2,
   Low: 3,
 };
 
+// Map backend -> UI (defensive)
+function toUI(e: APIEvent): Event {
+  const u = (e.urgency || '').toLowerCase();
+  const urgency: Event['urgency'] =
+    u === 'high' ? 'High' : u === 'medium' ? 'Medium' : 'Low';
+
+  const loc = [e.city, e.state_id].filter(Boolean).join(', ');
+  const iso = e.date ?? '';
+  const date = iso.length >= 10 ? iso.slice(0, 10) : iso;
+
+  return {
+    id: String(e.event_id),
+    name: e.name ?? 'Untitled',
+    requiredSkills: [], // plug in later when an endpoint exists
+    urgency,
+    date,
+    location: loc,
+  };
+}
+
 export default function MatchingDashboard() {
-  // --- Mock Data for Demo ---
-  const mockProfile: Profile = {
+  // Temporary mock profile/volunteers so the page renders
+  const [profile] = useState<Profile>({
     id: 'u1',
     fullName: 'Demo Volunteer',
     skills: ['Cleaning'],
     availability: ['2025-07-10', '2025-07-11'],
     preferredLocations: ['Houston, TX'],
     role: 'Volunteer',
-  };
+  });
 
-  const mockVolunteers: Volunteer[] = [
-    { id: 'v1', fullName: 'Alice Johnson', skills: ['Cleaning'], availability: ['2025-07-10'], preferredLocations: ['Houston, TX'] },
-    { id: 'v2', fullName: 'Bob Smith', skills: ['Cooking'], availability: ['2025-07-11'], preferredLocations: ['Austin, TX'] },
-  ];
+  const [volunteers] = useState<Volunteer[]>([
+    {
+      id: 'v1',
+      fullName: 'Alice Johnson',
+      skills: ['Cleaning'],
+      availability: ['2025-07-10'],
+      preferredLocations: ['Houston, TX'],
+    },
+    {
+      id: 'v2',
+      fullName: 'Bob Smith',
+      skills: ['Cooking'],
+      availability: ['2025-07-11'],
+      preferredLocations: ['Austin, TX'],
+    },
+  ]);
 
-  const mockEvents: Event[] = [
-    { id: 'e1', name: 'Community Clean-Up', requiredSkills: ['Cleaning'], urgency: 'High', date: '2025-07-10', location: 'Houston, TX' },
-    { id: 'e2', name: 'Food Drive', requiredSkills: ['Cooking'], urgency: 'Medium', date: '2025-07-11', location: 'Austin, TX' },
-    { id: 'e3', name: 'Park Painting', requiredSkills: ['Painting'], urgency: 'Low', date: '2025-07-12', location: 'Houston, TX' },
-  ];
-
-  // State initialized with mock data
-  const [profile] = useState<Profile>(mockProfile);
-  const [volunteers] = useState<Volunteer[]>(mockVolunteers);
-  const [events] = useState<Event[]>(mockEvents);
+  // Events from backend
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters
-  const [dateFilter, setDateFilter] = useState<string>('');
-  const [locationFilter, setLocationFilter] = useState<string>('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState<Event['urgency'] | ''>('');
-  const [skillsFilter, setSkillsFilter] = useState<string>('');
+  const [skillsFilter, setSkillsFilter] = useState('');
 
-  // Admin form for event→volunteer matching
+  // Admin form bits
   const eventForm = useForm<{ eventId: string }>({ defaultValues: { eventId: '' } });
   const selectedEventId = eventForm.watch('eventId');
   const [matchedVolunteers, setMatchedVolunteers] = useState<Volunteer[]>([]);
 
-  // Compute matched volunteers for selected event (Admin view)
+  // Load events (robust to one endpoint failing)
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [upRes, pastRes] = await Promise.allSettled([
+          listUpcomingEvents(),
+          listPastEvents(),
+        ]);
+
+        let rows: APIEvent[] = [];
+        if (upRes.status === 'fulfilled') rows = rows.concat(upRes.value);
+        if (pastRes.status === 'fulfilled') rows = rows.concat(pastRes.value);
+
+        const mapped = rows.map(toUI).sort((a, b) => a.date.localeCompare(b.date));
+
+        if (alive) {
+          setEvents(mapped);
+          console.log('Loaded events:', mapped.length, mapped);
+        }
+      } catch (err: any) {
+        if (alive) setError(err?.message || 'Failed to load events.');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Compute matched volunteers for selected event (local demo logic)
   useEffect(() => {
     if (!selectedEventId) {
       setMatchedVolunteers([]);
@@ -90,13 +156,12 @@ export default function MatchingDashboard() {
       setMatchedVolunteers([]);
       return;
     }
-
-    const matches = volunteers.filter((v) =>
-      event.requiredSkills.every((skill) => v.skills.includes(skill)) &&
-      v.availability.includes(event.date) &&
-      v.preferredLocations.includes(event.location)
+    const matches = volunteers.filter(
+      (v) =>
+        event.requiredSkills.every((skill) => v.skills.includes(skill)) &&
+        v.availability.includes(event.date) &&
+        v.preferredLocations.includes(event.location),
     );
-
     setMatchedVolunteers(matches);
   }, [selectedEventId, events, volunteers]);
 
@@ -106,23 +171,18 @@ export default function MatchingDashboard() {
     alert(`Assigned ${matchedVolunteers.length} volunteers to event ${data.eventId}`);
   };
 
-  // Volunteer view: show recommended events
-  if (profile.role === 'Volunteer') {
-    // Base recommendations from profile
-    const recommended = events
-      .filter(
-        (e) =>
-          e.requiredSkills.every((skill) => profile.skills.includes(skill)) &&
-          profile.availability.includes(e.date) &&
-          profile.preferredLocations.includes(e.location)
-      )
-      .sort((a, b) => urgencyRank[a.urgency] - urgencyRank[b.urgency]);
+  // Loading / error states
+  if (loading) return <main className="min-h-screen p-6">Loading events…</main>;
 
-    // Apply UI filters
-    const skillsArray = skillsFilter
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+  // ───────────────────────────────────────────────────────────────────
+  // Volunteer view: SHOW ALL EVENTS first, then apply UI filters only.
+  // ───────────────────────────────────────────────────────────────────
+  if (profile.role === 'Volunteer') {
+    const recommended = [...events].sort(
+      (a, b) => urgencyRank[a.urgency] - urgencyRank[b.urgency],
+    );
+
+    const skillsArray = skillsFilter.split(',').map((s) => s.trim()).filter(Boolean);
 
     const filtered = recommended.filter((e) => {
       if (dateFilter && e.date !== dateFilter) return false;
@@ -134,6 +194,8 @@ export default function MatchingDashboard() {
 
     return (
       <main className="min-h-screen bg-[var(--color-ash_gray-500)] p-6">
+        {error && <p className="text-red-600 mb-4">Error loading some events: {error}</p>}
+
         <h1 className="text-3xl font-bold text-[var(--color-charcoal-100)] mb-4">Recommended Events</h1>
 
         {/* Filter Panel */}
@@ -169,7 +231,9 @@ export default function MatchingDashboard() {
               >
                 <option value="">Any</option>
                 {urgencyOptions.map((u) => (
-                  <option key={u} value={u}>{u}</option>
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
                 ))}
               </select>
             </div>
@@ -211,9 +275,9 @@ export default function MatchingDashboard() {
               </CardHeader>
               <CardContent>
                 <p><strong>Date:</strong> {e.date}</p>
-                <p><strong>Location:</strong> {e.location}</p>
+                <p><strong>Location:</strong> {e.location || '—'}</p>
                 <p><strong>Urgency:</strong> {e.urgency}</p>
-                <p><strong>Skills:</strong> {e.requiredSkills.join(', ')}</p>
+                <p><strong>Skills:</strong> {e.requiredSkills.length ? e.requiredSkills.join(', ') : '—'}</p>
                 <Button
                   className="mt-4 w-full"
                   onClick={() => {
@@ -227,14 +291,16 @@ export default function MatchingDashboard() {
             </Card>
           ))}
           {filtered.length === 0 && (
-            <p className="text-center col-span-full">No events match your filters.</p>
+            <p className="text-center col-span-full">
+              {events.length === 0 ? 'No events yet.' : 'No events match your filters.'}
+            </p>
           )}
         </div>
       </main>
     );
   }
 
-  // Admin view: event→volunteer matching
+  // Admin view
   return (
     <main className="min-h-screen bg-[var(--color-ash_gray-500)] p-6">
       <Card className="max-w-lg mx-auto bg-[var(--color-white)] shadow-lg rounded-2xl">
@@ -283,4 +349,3 @@ export default function MatchingDashboard() {
     </main>
   );
 }
-
