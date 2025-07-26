@@ -110,7 +110,7 @@ def me():
         uid = int(identity)
     except (TypeError, ValueError):
         return jsonify({"error": "bad_identity"}), 400
-    user = UserCredentials.query.get(uid)
+    user = db.session.get(UserCredentials, uid)
     if not user:
         return jsonify({"error": "not_found"}), 404
     return jsonify({"user": user_to_dict(user)}), 200
