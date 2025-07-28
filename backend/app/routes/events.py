@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from flask import Blueprint, jsonify, request
+import socketio
 
 from app.imports import db
 from app.models.events import Events, UrgencyEnum
@@ -79,7 +80,12 @@ def create_event():
     )
     db.session.add(new_row)
     db.session.commit()
-
+    socketio.emit(
+        "event_assigned",
+        {**_serialize(new_row),
+        "message": f"🆕 New event '{new_row.name}' has been created!"},
+        broadcast=True
+    )
 
 
     return jsonify({"event_id": new_row.event_id}), 201
@@ -102,5 +108,12 @@ def update_event(event_id: int):
         row.date = datetime.fromisoformat(data["date"])
 
     db.session.commit()
+
+    socketio.emit(
+        "event_update",
+        {**_serialize(row),
+        "message": f"📅 Event '{row.name}' has been updated."},
+        broadcast=True
+    )
 
     return jsonify({"ok": True}), 200

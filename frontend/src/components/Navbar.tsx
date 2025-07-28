@@ -54,7 +54,7 @@ export default function Navbar() {
     <header className="bg-[var(--color-ash_gray-900)] border-b border-[var(--color-ash_gray-900)] px-8 py-3 flex justify-between items-center shadow-sm">
       <Link to="/" className="flex items-center gap-3 text-3xl font-semibold text-[--color-dark_slate_gray-400] hover:opacity-90 pl-4 pr-4">
         <img src={logoImage} alt="Logo" className="h-8 w-8 object-contain" />
-        VolunteerApp
+        HelpingHands
       </Link>
 
       {/* Desktop Navigation */}
