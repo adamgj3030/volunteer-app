@@ -46,10 +46,9 @@ _volunteers = [
 ]
 
 @volunteer_history_bp.route("", methods=["GET"])
+@volunteer_history_bp.route("/", methods=["GET"])
 def get_volunteer_history():
     """
-    Returns the full list of volunteers with all their events.
-    Front-end will handle any filtering, sorting, or searching.
+    GET /volunteer/history and GET /volunteer/history/
     """
     return jsonify(_volunteers)
-

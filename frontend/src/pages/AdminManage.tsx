@@ -46,7 +46,6 @@ useEffect(() => {
       console.error("Error fetching pending users:", err);
     })
     .finally(() => setLoading(false));
-
 }, []);
 
 const acceptUser = async (user_id: number) => {

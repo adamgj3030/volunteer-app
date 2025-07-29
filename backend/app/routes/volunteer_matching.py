@@ -3,10 +3,10 @@ from flask import Blueprint, jsonify, request
 volunteer_matching_bp = Blueprint(
     "volunteer_matching",
     __name__,
-    url_prefix="/volunteer",
+    url_prefix="/volunteer/matching",
 )
 
-# ——— Dummy data ———
+# ――― Dummy data ―――
 _VOLUNTEERS = [
     { "id": "v1", "fullName": "Alice Johnson", "skills": ["Cleaning"],  "availability": ["2025-07-10"] },
     { "id": "v2", "fullName": "Bob Smith",     "skills": ["Cooking"],   "availability": ["2025-07-11"] },
@@ -37,14 +37,18 @@ _EVENTS = [
     },
 ]
 
-# ――― In‐memory store for saved matches ―――
 _SAVED_MATCHES: list[dict] = []
+
+@volunteer_matching_bp.route("/events", methods=["GET"])
+def list_matching_events():
+    """GET  /volunteer/matching/events"""
+    return jsonify(_EVENTS)
 
 @volunteer_matching_bp.route("", methods=["GET"])
 def get_volunteer_matches():
     """
-    GET /volunteer/matching?eventId=<id>
-    Returns volunteers scored by availability & skill-match count.
+    GET  /volunteer/matching?eventId=<id>
+    Score & return volunteers for that event.
     """
     event_id = request.args.get("eventId")
     if not event_id:
@@ -55,39 +59,29 @@ def get_volunteer_matches():
         return jsonify([])
 
     def score(vol):
-        available   = event["date"] in vol["availability"]
-        skill_count = sum(1 for s in event["requiredSkills"] if s in vol["skills"])
-        return (available, skill_count)
+        avail    = event["date"] in vol["availability"]
+        skill_ct = sum(1 for s in event["requiredSkills"] if s in vol["skills"])
+        return (avail, skill_ct)
 
-    ranked = sorted(_VOLUNTEERS, key=score, reverse=True)
+    ranked = sorted(_VOLUNTEERS, key=lambda v: score(v), reverse=True)
     return jsonify(ranked)
-
 
 @volunteer_matching_bp.route("", methods=["POST"])
 def save_volunteer_match():
     """
-    POST /volunteer/matching
-    Body JSON: { eventId: string, volunteerId: string }
-    Stores the match in memory.
+    POST  /volunteer/matching
+    Body: { eventId, volunteerId }
     """
     data = request.get_json() or {}
-    event_id     = data.get("eventId")
-    volunteer_id = data.get("volunteerId")
+    eid = data.get("eventId")
+    vid = data.get("volunteerId")
+    if not eid or not vid:
+        return jsonify({"error": "eventId and volunteerId required"}), 400
 
-    if not event_id or not volunteer_id:
-        return jsonify({"error": "eventId and volunteerId are required"}), 400
-
-    _SAVED_MATCHES.append({
-        "eventId":     event_id,
-        "volunteerId": volunteer_id,
-    })
-    return jsonify({"saved": {"eventId": event_id, "volunteerId": volunteer_id}}), 201
-
+    _SAVED_MATCHES.append({"eventId": eid, "volunteerId": vid})
+    return jsonify({"saved": {"eventId": eid, "volunteerId": vid}}), 201
 
 @volunteer_matching_bp.route("/saved", methods=["GET"])
 def list_saved_matches():
-    """
-    GET /volunteer/matching/saved
-    Returns all the matches saved so far.
-    """
+    """GET  /volunteer/matching/saved"""
     return jsonify(_SAVED_MATCHES)
