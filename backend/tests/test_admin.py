@@ -15,14 +15,16 @@ def test_pending_users_empty_returns_404(client, app):
 
 def test_pending_users_returns_expected(client, app):
     seed_states(app)
-    # create a confirmed ADMIN_PENDING user
-    token = create_confirmed_user_and_token(client, app, email="admin1@example.org", role="admin")
+    # create a confirmed ADMIN_PENDING user without login
+    create_confirmed_user_and_token(
+        client, app, email="admin1@example.org", role="admin", skip_login=True
+    )
 
     with app.app_context():
         user = UserCredentials.query.filter_by(email="admin1@example.org").first()
         user.role = User_Roles.ADMIN_PENDING
-        db.session.commit()
         user.profile.full_name = "Alice Admin"
+        db.session.commit()
 
     path = find_rule(app, "admin.pending_users")
     r = client.get(path)
@@ -32,7 +34,10 @@ def test_pending_users_returns_expected(client, app):
     assert any(u["email"] == "admin1@example.org" for u in j)
 
 def test_approve_user_sets_role_to_admin(client, app):
-    token = create_confirmed_user_and_token(client, app, email="pending@example.org", role="admin")
+    create_confirmed_user_and_token(
+        client, app, email="pending@example.org", role="admin", skip_login=True
+    )
+
     with app.app_context():
         user = UserCredentials.query.filter_by(email="pending@example.org").first()
         user.role = User_Roles.ADMIN_PENDING
@@ -48,7 +53,10 @@ def test_approve_user_sets_role_to_admin(client, app):
         assert user.role == User_Roles.ADMIN
 
 def test_deny_user_sets_role_to_volunteer(client, app):
-    token = create_confirmed_user_and_token(client, app, email="denyme@example.org", role="admin")
+    create_confirmed_user_and_token(
+        client, app, email="denyme@example.org", role="admin", skip_login=True
+    )
+
     with app.app_context():
         user = UserCredentials.query.filter_by(email="denyme@example.org").first()
         user.role = User_Roles.ADMIN_PENDING
@@ -70,7 +78,10 @@ def test_approve_or_deny_nonexistent_user_returns_404(client):
     assert r.status_code == 404
 
 def test_invalid_transitions_return_400(client, app):
-    token = create_confirmed_user_and_token(client, app, email="alreadyadmin@example.org", role="admin")
+    create_confirmed_user_and_token(
+        client, app, email="alreadyadmin@example.org", role="admin", skip_login=True
+    )
+
     with app.app_context():
         user = UserCredentials.query.filter_by(email="alreadyadmin@example.org").first()
         user.role = User_Roles.ADMIN
