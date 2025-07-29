@@ -48,10 +48,22 @@ def login_get_token(client, email: str, password: str) -> str:
     assert r.status_code == 200, r.get_data(as_text=True)
     return r.get_json()["access_token"]
 
-def create_confirmed_user_and_token(client, app: Flask, email="alice@example.org", password="StrongPass!1", role="volunteer") -> str:
+def create_confirmed_user_and_token(
+    client,
+    app: Flask,
+    email="alice@example.org",
+    password="StrongPass!1",
+    role="volunteer",
+    skip_login=False
+) -> str | None:
     _ = register(client, email=email, password=password, role=role)
     _ = confirm_email_via_token(client, app, email=email, role_requested=role)
+
+    if skip_login:
+        return None
+
     return login_get_token(client, email=email, password=password)
+
 
 def auth_header(token: str) -> Dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
