@@ -1,351 +1,499 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-// Same API used by EventForm.tsx
+import { useAuth } from '@/context/AuthContext';
+import { fetchMyProfile, fetchSkills } from '@/lib/api';
+import type { VolunteerProfile, SkillOption } from '@/types/profile';
+
 import {
   listUpcoming as listUpcomingEvents,
   listPast as listPastEvents,
   type Event as APIEvent,
 } from '@/lib/events';
 
-// --- UI Type Definitions ---
-interface Profile {
-  id: string;
-  fullName: string;
-  skills: string[];
-  availability: string[]; // ISO dates
-  preferredLocations: string[];
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ChevronDownIcon } from 'lucide-react';
+
+/* ───────────────────────────── Types & constants ───────────────────────── */
+interface ProfileDerived {
+  city: string;
+  state: string;
+  zipcode: string;
+  availability: string[];
+  skillIds: number[];
+  skillNames: string[];
   role: 'Volunteer' | 'Admin';
 }
 
-interface Volunteer {
-  id: string;
-  fullName: string;
-  skills: string[];
-  availability: string[];
-  preferredLocations: string[];
-}
-
-interface Event {
+interface EventUI {
   id: string;
   name: string;
   requiredSkills: string[];
   urgency: 'High' | 'Medium' | 'Low';
-  date: string; // YYYY-MM-DD
-  location: string;
+  date: string;  // yyyy‑mm‑dd
+  city: string;
+  state: string;
+  zipcode: string;
 }
 
-const urgencyOptions: Event['urgency'][] = ['High', 'Medium', 'Low'];
+const SKILL_OPTIONS = [
+  'Leadership',
+  'Communication',
+  'Organization',
+  'Technical',
+  'Fundraising',
+  'Design',
+] as const;
+const ALL_SKILLS_CT = SKILL_OPTIONS.length;
 
-const urgencyRank: Record<Event['urgency'], number> = {
-  High: 1,
-  Medium: 2,
-  Low: 3,
-};
+const STATE_OPTIONS = [
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS',
+  'KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY',
+  'NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV',
+  'WI','WY',
+] as const;
 
-// Map backend -> UI (defensive)
-function toUI(e: APIEvent): Event {
-  const u = (e.urgency || '').toLowerCase();
-  const urgency: Event['urgency'] =
-    u === 'high' ? 'High' : u === 'medium' ? 'Medium' : 'Low';
+const urgencyOptions: EventUI['urgency'][] = ['High', 'Medium', 'Low'];
 
-  const loc = [e.city, e.state_id].filter(Boolean).join(', ');
-  const iso = e.date ?? '';
-  const date = iso.length >= 10 ? iso.slice(0, 10) : iso;
+/* ────────────────────────────── Helpers ───────────────────────────────── */
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
 
-  return {
-    id: String(e.event_id),
-    name: e.name ?? 'Untitled',
-    requiredSkills: [], // plug in later when an endpoint exists
-    urgency,
-    date,
-    location: loc,
-  };
-}
+const extractSkills = (e: APIEvent): string[] =>
+  Array.isArray((e as any).requiredSkills)
+    ? (e as any).requiredSkills
+    : Array.isArray((e as any).skills)
+    ? (e as any).skills.map((s: any) => (typeof s === 'string' ? s : s?.name ?? ''))
+    : Array.isArray((e as any).skill_names)
+    ? (e as any).skill_names
+    : [];
 
+const toUI = (e: APIEvent): EventUI => ({
+  id: String(e.event_id),
+  name: e.name ?? 'Untitled',
+  requiredSkills: extractSkills(e),
+  urgency:
+    (e.urgency || '').toLowerCase() === 'high'
+      ? 'High'
+      : (e.urgency || '').toLowerCase() === 'medium'
+      ? 'Medium'
+      : 'Low',
+  date: (e.date ?? '').slice(0, 10),
+  city: e.city ?? '',
+  state: (e.state_id ?? '').toUpperCase(),
+  zipcode: e.zipcode ?? '',
+});
+
+/* ─────────────────────────── Component ────────────────────────────────── */
 export default function MatchingDashboard() {
-  // Temporary mock profile/volunteers so the page renders
-  const [profile] = useState<Profile>({
-    id: 'u1',
-    fullName: 'Demo Volunteer',
-    skills: ['Cleaning'],
-    availability: ['2025-07-10', '2025-07-11'],
-    preferredLocations: ['Houston, TX'],
+  const { token } = useAuth();
+
+  /* profile */
+  const [profile, setProfile] = useState<ProfileDerived>({
+    city: '',
+    state: '',
+    zipcode: '',
+    availability: [],
+    skillIds: [],
+    skillNames: [],
     role: 'Volunteer',
   });
 
-  const [volunteers] = useState<Volunteer[]>([
-    {
-      id: 'v1',
-      fullName: 'Alice Johnson',
-      skills: ['Cleaning'],
-      availability: ['2025-07-10'],
-      preferredLocations: ['Houston, TX'],
-    },
-    {
-      id: 'v2',
-      fullName: 'Bob Smith',
-      skills: ['Cooking'],
-      availability: ['2025-07-11'],
-      preferredLocations: ['Austin, TX'],
-    },
-  ]);
-
-  // Events from backend
-  const [events, setEvents] = useState<Event[]>([]);
+  /* events */
+  const [events, setEvents] = useState<EventUI[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
-  // Filters
-  const [dateFilter, setDateFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
-  const [urgencyFilter, setUrgencyFilter] = useState<Event['urgency'] | ''>('');
-  const [skillsFilter, setSkillsFilter] = useState('');
+  /* raw (editable) filters */
+  const [rawDates, setRawDates] = useState<Date[]>([]);
+  const [rawCity, setRawCity] = useState('');
+  const [rawState, setRawState] = useState('');
+  const [rawZip, setRawZip] = useState('');
+  const [rawUrgency, setRawUrgency] = useState<EventUI['urgency'] | ''>('');
+  const [rawSkills, setRawSkills] = useState<string[]>([]);
 
-  // Admin form bits
-  const eventForm = useForm<{ eventId: string }>({ defaultValues: { eventId: '' } });
-  const selectedEventId = eventForm.watch('eventId');
-  const [matchedVolunteers, setMatchedVolunteers] = useState<Volunteer[]>([]);
+  /* applied filters */
+  const [datesFilter, setDatesFilter] = useState<Set<string>>(new Set());
+  const [cityFilter, setCityFilter] = useState('');
+  const [stateFilter, setStateFilter] = useState('');
+  const [zipFilter, setZipFilter] = useState('');
+  const [urgencyFilter, setUrgencyFilter] = useState<EventUI['urgency'] | ''>('');
+  const [skillsFilter, setSkillsFilter] = useState<string[]>([]);
 
-  // Load events (robust to one endpoint failing)
+  /* popovers */
+  const [datesOpen, setDatesOpen] = useState(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
+
+  /* ─────────── Load profile & defaults ─────────── */
   useEffect(() => {
-    let alive = true;
-    async function load() {
-      setLoading(true);
-      setError(null);
+    (async () => {
       try {
-        const [upRes, pastRes] = await Promise.allSettled([
-          listUpcomingEvents(),
-          listPastEvents(),
+        const [skillOpts, prof] = await Promise.all([
+          fetchSkills(),
+          token ? fetchMyProfile(token) : Promise.resolve(null),
         ]);
 
-        let rows: APIEvent[] = [];
-        if (upRes.status === 'fulfilled') rows = rows.concat(upRes.value);
-        if (pastRes.status === 'fulfilled') rows = rows.concat(pastRes.value);
+        const skillMap = new Map<number, string>(
+          (skillOpts as SkillOption[]).map((s) => [s.id, s.name]),
+        );
 
-        const mapped = rows.map(toUI).sort((a, b) => a.date.localeCompare(b.date));
+        const p = prof as VolunteerProfile | null;
+        const availISO = (p?.availability ?? []).map((d) => String(d).slice(0, 10));
+        const firstAvail = availISO[0] ?? iso(new Date());
 
-        if (alive) {
-          setEvents(mapped);
-          console.log('Loaded events:', mapped.length, mapped);
-        }
-      } catch (err: any) {
-        if (alive) setError(err?.message || 'Failed to load events.');
-      } finally {
-        if (alive) setLoading(false);
+        const skillNames = (p?.skills ?? [])
+          .map((id: number) => skillMap.get(id) || '')
+          .filter(Boolean);
+
+        setProfile({
+          city: p?.city ?? '',
+          state: (p?.state ?? '').toUpperCase(),
+          zipcode: p?.zipcode ?? '',
+          availability: availISO,
+          skillIds: (p?.skills ?? []) as number[],
+          skillNames,
+          role: p?.role === 'Admin' ? 'Admin' : 'Volunteer',
+        });
+
+        /* initialise RAW filters with profile values */
+        setRawDates([new Date(firstAvail)]);
+        setRawSkills(skillNames.filter((s) => SKILL_OPTIONS.includes(s as any)));
+        setRawCity(p?.city ?? '');
+        setRawState((p?.state ?? '').toUpperCase());
+        setRawZip(p?.zipcode ?? '');
+
+        /* sync applied filters */
+        setDatesFilter(new Set([firstAvail]));
+        setSkillsFilter(skillNames.filter((s) => SKILL_OPTIONS.includes(s as any)));
+        setCityFilter(p?.city ?? '');
+        setStateFilter((p?.state ?? '').toUpperCase());
+        setZipFilter(p?.zipcode ?? '');
+
+        setProfileLoaded(true);
+      } catch {
+        setProfileLoaded(true);
       }
-    }
-    load();
-    return () => {
-      alive = false;
-    };
+    })();
+  }, [token]);
+
+  /* ─────────── Load events ─────────── */
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const [u, p] = await Promise.all([listUpcomingEvents(), listPastEvents()]);
+        /* combine and map to UI objects */
+        setEvents([...u, ...p].map(toUI));
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
-  // Compute matched volunteers for selected event (local demo logic)
-  useEffect(() => {
-    if (!selectedEventId) {
-      setMatchedVolunteers([]);
-      return;
-    }
-    const event = events.find((e) => e.id === selectedEventId);
-    if (!event) {
-      setMatchedVolunteers([]);
-      return;
-    }
-    const matches = volunteers.filter(
-      (v) =>
-        event.requiredSkills.every((skill) => v.skills.includes(skill)) &&
-        v.availability.includes(event.date) &&
-        v.preferredLocations.includes(event.location),
-    );
-    setMatchedVolunteers(matches);
-  }, [selectedEventId, events, volunteers]);
+  /* datalists */
+  const uniqueCities = useMemo(
+    () =>
+      [...new Set(events.map((e) => e.city.trim()))]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [events],
+  );
+  const uniqueZips = useMemo(
+    () =>
+      [...new Set(events.map((e) => e.zipcode.trim()))]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [events],
+  );
 
-  // Handle event→volunteer match submission (demo)
-  const onEventSubmit = (data: { eventId: string }) => {
-    console.log('Event matches saved for:', data.eventId, matchedVolunteers);
-    alert(`Assigned ${matchedVolunteers.length} volunteers to event ${data.eventId}`);
-  };
+  /* visible list (never show past events) */
+  const visibleEvents = useMemo(() => {
+    const todayISO = iso(new Date());
 
-  // Loading / error states
-  if (loading) return <main className="min-h-screen p-6">Loading events…</main>;
+    return events.filter((e) => {
+      /* hide past events */
+      if (e.date < todayISO) return false;
 
-  // ───────────────────────────────────────────────────────────────────
-  // Volunteer view: SHOW ALL EVENTS first, then apply UI filters only.
-  // ───────────────────────────────────────────────────────────────────
-  if (profile.role === 'Volunteer') {
-    const recommended = [...events].sort(
-      (a, b) => urgencyRank[a.urgency] - urgencyRank[b.urgency],
-    );
-
-    const skillsArray = skillsFilter.split(',').map((s) => s.trim()).filter(Boolean);
-
-    const filtered = recommended.filter((e) => {
-      if (dateFilter && e.date !== dateFilter) return false;
-      if (locationFilter && !e.location.toLowerCase().includes(locationFilter.toLowerCase())) return false;
+      if (datesFilter.size && !datesFilter.has(e.date)) return false;
+      if (cityFilter && e.city.toLowerCase() !== cityFilter.toLowerCase()) return false;
+      if (stateFilter && e.state !== stateFilter) return false;
+      if (zipFilter && e.zipcode !== zipFilter) return false;
       if (urgencyFilter && e.urgency !== urgencyFilter) return false;
-      if (skillsArray.length && !skillsArray.every((sk) => e.requiredSkills.includes(sk))) return false;
+      if (
+        skillsFilter.length &&
+        skillsFilter.length < ALL_SKILLS_CT &&
+        !skillsFilter.some((s) =>
+          e.requiredSkills
+            .map((x) => x.toLowerCase().trim())
+            .includes(s.toLowerCase().trim()),
+        )
+      )
+        return false;
       return true;
     });
+  }, [
+    events,
+    datesFilter,
+    cityFilter,
+    stateFilter,
+    zipFilter,
+    urgencyFilter,
+    skillsFilter,
+  ]);
 
-    return (
-      <main className="min-h-screen bg-[var(--color-ash_gray-500)] p-6">
-        {error && <p className="text-red-600 mb-4">Error loading some events: {error}</p>}
+  /* actions */
+  const applyFilters = () => {
+    setDatesFilter(new Set(rawDates.map(iso)));
+    setCityFilter(rawCity);
+    setStateFilter(rawState);
+    setZipFilter(rawZip);
+    setUrgencyFilter(rawUrgency);
+    setSkillsFilter(rawSkills);
+  };
 
-        <h1 className="text-3xl font-bold text-[var(--color-charcoal-100)] mb-4">Recommended Events</h1>
+  const clearAll = () => {
+    setRawDates([]);
+    setRawCity('');
+    setRawState('');
+    setRawZip('');
+    setRawUrgency('');
+    setRawSkills([]);
 
-        {/* Filter Panel */}
-        <div className="mb-6 p-4 bg-[var(--color-white)] rounded-xl shadow">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">Filter by Date</label>
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="mt-1 block w-full p-2 border rounded-lg"
-              />
-            </div>
+    setDatesFilter(new Set());
+    setCityFilter('');
+    setStateFilter('');
+    setZipFilter('');
+    setUrgencyFilter('');
+    setSkillsFilter([]);
+  };
 
-            <div>
-              <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">Filter by Location</label>
-              <input
-                type="text"
-                placeholder="e.g. Houston"
-                value={locationFilter}
-                onChange={(e) => setLocationFilter(e.target.value)}
-                className="mt-1 block w-full p-2 border rounded-lg"
-              />
-            </div>
+  /* field helpers */
+  const toggleSkill = (s: string) =>
+    setRawSkills((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
 
-            <div>
-              <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">Filter by Urgency</label>
-              <select
-                value={urgencyFilter}
-                onChange={(e) => setUrgencyFilter(e.target.value as Event['urgency'] | '')}
-                className="mt-1 block w-full p-2 border rounded-lg"
-              >
-                <option value="">Any</option>
-                {urgencyOptions.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </select>
-            </div>
+  const dateLabel =
+    rawDates.length === 0
+      ? 'Any'
+      : rawDates.length === 1
+      ? iso(rawDates[0])
+      : `${rawDates.length} dates`;
+  const skillLabel =
+    rawSkills.length === 0
+      ? 'Any'
+      : rawSkills.length === 1
+      ? rawSkills[0]
+      : rawSkills.length === ALL_SKILLS_CT
+      ? 'Any'
+      : `${rawSkills.length} selected`;
 
-            <div>
-              <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">Filter by Skills</label>
-              <input
-                type="text"
-                placeholder="Comma-separated"
-                value={skillsFilter}
-                onChange={(e) => setSkillsFilter(e.target.value)}
-                className="mt-1 block w-full p-2 border rounded-lg"
-              />
-            </div>
-          </div>
+  if (loading || !profileLoaded) return <main className="p-6">Loading…</main>;
 
-          <div className="mt-4 text-right">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setDateFilter('');
-                setLocationFilter('');
-                setUrgencyFilter('');
-                setSkillsFilter('');
-              }}
-            >
-              Clear Filters
-            </Button>
-          </div>
-        </div>
-
-        {/* Event Cards */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {filtered.map((e) => (
-            <Card key={e.id} className="bg-[var(--color-white)] shadow-lg rounded-2xl">
-              <CardHeader>
-                <CardTitle>{e.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p><strong>Date:</strong> {e.date}</p>
-                <p><strong>Location:</strong> {e.location || '—'}</p>
-                <p><strong>Urgency:</strong> {e.urgency}</p>
-                <p><strong>Skills:</strong> {e.requiredSkills.length ? e.requiredSkills.join(', ') : '—'}</p>
-                <Button
-                  className="mt-4 w-full"
-                  onClick={() => {
-                    console.log('Applied to event', e.id);
-                    alert(`Applied to event ${e.name}`);
-                  }}
-                >
-                  Apply
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-          {filtered.length === 0 && (
-            <p className="text-center col-span-full">
-              {events.length === 0 ? 'No events yet.' : 'No events match your filters.'}
-            </p>
-          )}
-        </div>
-      </main>
-    );
-  }
-
-  // Admin view
+  /* ─────────── UI ─────────── */
   return (
     <main className="min-h-screen bg-[var(--color-ash_gray-500)] p-6">
-      <Card className="max-w-lg mx-auto bg-[var(--color-white)] shadow-lg rounded-2xl">
-        <CardHeader>
-          <CardTitle>Event → Volunteer Matching</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4">
-            <div>
-              <label className="block mb-1 text-sm font-medium text-[var(--color-charcoal-300)]">Select Event</label>
-              <div className="grid gap-2">
-                {events.map((e) => (
-                  <button
-                    key={e.id}
-                    type="button"
-                    onClick={() => eventForm.setValue('eventId', e.id)}
-                    className={`w-full text-left p-2 border rounded-lg focus:outline-none ${
-                      selectedEventId === e.id
-                        ? 'border-[var(--color-cambridge_blue-500)] bg-[var(--color-cambridge_blue-50)]'
-                        : 'border-[var(--color-ash_gray-400)] bg-[var(--color-white)]'
-                    }`}
+      <h1 className="text-3xl font-bold mb-4 text-[var(--color-charcoal-100)]">Event Matches</h1>
+
+      {/* Filter panel */}
+      <div className="mb-6 bg-white shadow rounded-xl p-4 space-y-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+          {/* Dates */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">
+              Dates
+            </label>
+            <Popover open={datesOpen} onOpenChange={setDatesOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="mt-1 w-full justify-between">
+                  {dateLabel}
+                  <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0" align="start">
+                <Calendar
+                  mode="multiple"
+                  selected={rawDates}
+                  onSelect={(d) => setRawDates(d ?? [])}
+                  className="border rounded-md p-2"
+                />
+                {rawDates.length > 0 && (
+                  <div className="border-t text-xs px-3 py-2 flex justify-between">
+                    <span>{rawDates.map(iso).join(', ')}</span>
+                    <button
+                      className="text-[var(--color-cambridge_blue-700)]"
+                      onClick={() => setRawDates([])}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* City */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">
+              City
+            </label>
+            <input
+              list="city-list"
+              value={rawCity}
+              onChange={(e) => setRawCity(e.target.value)}
+              placeholder="e.g. Houston"
+              className="mt-1 block w-full p-2 border rounded-lg"
+            />
+            <datalist id="city-list">
+              {uniqueCities.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </div>
+
+          {/* State */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">
+              State
+            </label>
+            <select
+              value={rawState}
+              onChange={(e) => setRawState(e.target.value)}
+              className="mt-1 block w-full p-2 border rounded-lg"
+            >
+              <option value="">Any</option>
+              {STATE_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Zip */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">
+              Zip Code
+            </label>
+            <input
+              list="zip-list"
+              value={rawZip}
+              onChange={(e) => setRawZip(e.target.value)}
+              placeholder="e.g. 77005"
+              className="mt-1 block w-full p-2 border rounded-lg"
+            />
+            <datalist id="zip-list">
+              {uniqueZips.map((z) => (
+                <option key={z} value={z} />
+              ))}
+            </datalist>
+          </div>
+
+          {/* Urgency */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">
+              Urgency
+            </label>
+            <select
+              value={rawUrgency}
+              onChange={(e) => setRawUrgency(e.target.value as any)}
+              className="mt-1 block w-full p-2 border rounded-lg"
+            >
+              <option value="">Any</option>
+              {urgencyOptions.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Skills */}
+          <div className="lg:col-span-4">
+            <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">
+              Skills
+            </label>
+            <Popover open={skillsOpen} onOpenChange={setSkillsOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="mt-1 w-full justify-between">
+                  {skillLabel}
+                  <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2 flex flex-col gap-1">
+                <label
+                  className="flex items-center gap-2 text-sm cursor-pointer"
+                  onClick={() => setRawSkills([])}
+                >
+                  <Checkbox checked={rawSkills.length === 0} />
+                  <span>Any</span>
+                </label>
+                <hr className="my-1" />
+                {SKILL_OPTIONS.map((sk) => (
+                  <label
+                    key={sk}
+                    className="flex items-center gap-2 text-sm cursor-pointer"
                   >
-                    {e.name}
-                  </button>
+                    <Checkbox
+                      checked={rawSkills.includes(sk)}
+                      onCheckedChange={() => toggleSkill(sk)}
+                    />
+                    <span>{sk}</span>
+                  </label>
                 ))}
-              </div>
-            </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
 
-            {matchedVolunteers.length > 0 && (
-              <div className="p-4 bg-[var(--color-white)] border border-[var(--color-ash_gray-300)] rounded-lg">
-                <h2 className="font-semibold mb-2">Matched Volunteers</h2>
-                <ul className="list-disc list-inside space-y-1">
-                  {matchedVolunteers.map((v) => (
-                    <li key={v.id}>{v.fullName}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+        {/* buttons */}
+        <div className="flex justify-end gap-2">
+          <Button size="sm" onClick={applyFilters}>
+            Apply Filters
+          </Button>
+          <Button size="sm" variant="outline" onClick={clearAll}>
+            Clear Filters
+          </Button>
+        </div>
+      </div>
 
-            <Button type="submit" className="w-full">
-              Save Matches
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      {/* results */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {visibleEvents.map((e) => (
+          <Card key={e.id} className="bg-white shadow-lg rounded-2xl">
+            <CardHeader>
+              <CardTitle>{e.name}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p><strong>Date:</strong> {e.date}</p>
+              <p>
+                <strong>Location:</strong> {`${e.city}, ${e.state}`}  {e.zipcode}
+              </p>
+              <p><strong>Urgency:</strong> {e.urgency}</p>
+              <p>
+                <strong>Skills:</strong>{' '}
+                {e.requiredSkills.length ? e.requiredSkills.join(', ') : '—'}
+              </p>
+              <Button className="mt-4 w-full" onClick={() => alert(`Applied to ${e.name}`)}>
+                Apply
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+        {visibleEvents.length === 0 && (
+          <p className="text-center col-span-full">No events match the filters.</p>
+        )}
+      </div>
     </main>
   );
 }
