@@ -5,6 +5,7 @@ from tests.utils import (
     find_rule
 )
 from app.models.userCredentials import UserCredentials, User_Roles
+from app.models.userProfiles import UserProfiles
 from app import db
 
 def test_pending_users_empty_returns_404(client, app):
@@ -26,7 +27,16 @@ def test_pending_users_returns_expected(client, app):
 
         if not user.profile:
             from app.models.userProfiles import UserProfiles
-            user.profile = UserProfiles(user_id=user.user_id, full_name="Alice Admin")
+            user.profile = UserProfiles(
+            user_id=user.user_id,
+            full_name="Alice Admin",
+            address1="123 Test St",
+            address2="Apt 1",
+            city="Houston",
+            state_id="TX",
+            zipcode="77001",
+            preferences=""
+        )
         else:
             user.profile.full_name = "Alice Admin"
 
