@@ -23,8 +23,15 @@ def test_pending_users_returns_expected(client, app):
     with app.app_context():
         user = UserCredentials.query.filter_by(email="admin1@example.org").first()
         user.role = User_Roles.ADMIN_PENDING
-        user.profile.full_name = "Alice Admin"
+
+        if not user.profile:
+            from app.models.userProfiles import UserProfiles
+            user.profile = UserProfiles(user_id=user.user_id, full_name="Alice Admin")
+        else:
+            user.profile.full_name = "Alice Admin"
+
         db.session.commit()
+
 
     path = find_rule(app, "admin.pending_users")
     r = client.get(path)
