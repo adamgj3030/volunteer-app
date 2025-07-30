@@ -1,5 +1,6 @@
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 export default function UserLanding() {
   return (
@@ -12,36 +13,17 @@ export default function UserLanding() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button className="rounded-xl shadow-sm py-6 text-base bg-hookers_green-500 hover:bg-hookers_green-600">
-              View / Update Profile
+              <Link to="/volunteer/task">Tasks</Link>
             </Button>
             <Button className="rounded-xl shadow-sm py-6 text-base bg-hookers_green-500 hover:bg-hookers_green-600">
-              Manage Events
+              <Link to="/volunteer/manage">Profile</Link>
             </Button>
             <Button className="rounded-xl shadow-sm py-6 text-base bg-hookers_green-500  hover:bg-hookers_green-600">
-              Volunteer History
+              <Link to="/volunteer/matching">Matching</Link>
             </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="border-none bg-cambridge_blue-800  rounded-2xl shadow-md">
-              <CardContent className="py-4 space-y-2">
-                <CardTitle className="text-lg font-semibold ">Upcoming Events</CardTitle>
-                <ul className="list-disc pl-5 text-sm ">
-                  <li>Food Bank Drive – 07/12/25</li>
-                  <li>Cleanup Day – 08/03/25</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none bg-cambridge_blue-800  rounded-2xl shadow-md">
-              <CardContent className="py-4 space-y-2">
-                <CardTitle className="text-lg font-semibold ">Recent Participation</CardTitle>
-                <ul className="list-disc pl-5 text-sm ">
-                  <li>Voted: Community Cleanup</li>
-                  <li>Attended: Park Beautification</li>
-                </ul>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
