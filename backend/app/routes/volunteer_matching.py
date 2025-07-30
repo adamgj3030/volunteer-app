@@ -21,6 +21,12 @@ volunteer_matching_bp = Blueprint(
 )
 
 # ---------------------------------------------------------------------------
+# compatibility shim for pytest ── the list is no longer used at runtime,      #
+# but the test suite clears it on import.                                      #
+# ---------------------------------------------------------------------------
+_SAVED_MATCHES: list[dict] = []          # <-- **add this line**
+
+# ---------------------------------------------------------------------------
 # helpers → group flat SQL rows into JSON shapes
 # ---------------------------------------------------------------------------
 
