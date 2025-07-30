@@ -8,11 +8,11 @@ from app.models.userCredentials import UserCredentials, User_Roles
 from app.models.userProfiles import UserProfiles
 from app import db
 
-def test_pending_users_empty_returns_404(client, app):
+def test_pending_users_empty_returns_empty_list(client, app):
     path = find_rule(app, "admin.pending_users")
     r = client.get(path)
-    assert r.status_code == 404
-    assert r.get_json()["message"] == "No pending users"
+    assert r.status_code == 200
+    assert r.json == []
 
 def test_pending_users_returns_expected(client, app):
     seed_states(app)
