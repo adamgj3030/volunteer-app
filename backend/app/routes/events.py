@@ -12,8 +12,8 @@ from app.models.skill import Skill
 
 # ───────────────────────── socket.io: safe import ─────────────────────────
 try:
-    from app.sockets import socketio  # your initialized instance
-except Exception:                      # noqa: BLE001
+    from app.sockets import socketio          # type: ignore
+except Exception:                              # noqa: BLE001
     import types
     socketio = types.SimpleNamespace(emit=lambda *a, **kw: None)  # type: ignore
 # --------------------------------------------------------------------------
@@ -24,7 +24,7 @@ events_bp = Blueprint("events", __name__)
 # helpers
 # ---------------------------------------------------------------------------
 def _serialize(event: Events) -> dict:
-    """Convert SQLAlchemy row → plain dict (includes skill IDs)."""
+    """Convert SQLAlchemy row → plain dict (now includes skill IDs)."""
     return {
         "event_id": event.event_id,
         "name": event.name,
@@ -35,7 +35,7 @@ def _serialize(event: Events) -> dict:
         "zipcode": event.zipcode,
         "urgency": event.urgency.name,
         "date": event.date.isoformat(),
-        "skills": [s.skill_id for s in event.skills],
+        "skills": [s.skill_id for s in event.skills],          # ← NEW
     }
 
 # ---------------------------------------------------------------------------
@@ -77,10 +77,7 @@ def get_event(event_id: int):
 def create_event():
     data = request.get_json(force=True) or {}
 
-    # ── skill IDs may arrive as strings; coerce to int ──
-    skill_ids: list[int] = [
-        int(s) for s in data.get("skills", []) if str(s).isdigit()
-    ]
+    skill_ids: list[int] = [int(s) for s in data.get("skills", []) if str(s).isdigit()]
 
     new_row = Events(
         name=data["name"],
@@ -93,7 +90,7 @@ def create_event():
         date=datetime.fromisoformat(data["date"]),
     )
     db.session.add(new_row)
-    db.session.flush()  # ensure new_row.event_id exists
+    db.session.flush()  # ensure event_id exists
 
     if skill_ids:
         new_row.skills = (
@@ -119,29 +116,20 @@ def update_event(event_id: int):
     row = Events.query.get_or_404(event_id)
     data = request.get_json(force=True) or {}
 
-    # ── primitives ──
-    if "name" in data:
-        row.name = data["name"]
-    if "description" in data:
-        row.description = data["description"]
-    if "address" in data:
-        row.address = data["address"]
-    if "city" in data:
-        row.city = data["city"]
-    if "state_id" in data:
-        row.state_id = data["state_id"]
-    if "zipcode" in data:
-        row.zipcode = data["zipcode"]
-    if "urgency" in data:
-        row.urgency = UrgencyEnum[data["urgency"]]
+    # ── familiar fallback pattern ──
+    row.name        = data.get("name", row.name)
+    row.description = data.get("description", row.description)
+    row.address     = data.get("address", row.address)
+    row.city        = data.get("city", row.city)
+    row.state_id    = data.get("state_id", row.state_id)
+    row.zipcode     = data.get("zipcode", row.zipcode)
+    row.urgency     = UrgencyEnum[data.get("urgency", row.urgency.name)]
     if "date" in data:
         row.date = datetime.fromisoformat(data["date"])
 
     # ── skills ──
     if "skills" in data:
-        skill_ids: list[int] = [
-            int(s) for s in data["skills"] if str(s).isdigit()
-        ]
+        skill_ids: list[int] = [int(s) for s in data["skills"] if str(s).isdigit()]
         row.skills = (
             db.session.query(Skill)
             .filter(Skill.skill_id.in_(skill_ids))
