@@ -1,22 +1,21 @@
-# backend/app/routes/events.py
+# app/routes/events.py
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from flask import Blueprint, jsonify, request
-import socketio  # safe import; emits will be wrapped
+import socketio
 
 from app.imports import db
 from app.models.events import Events, UrgencyEnum
 
-# Blueprint definition
 events_bp = Blueprint("events", __name__)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers
-def _serialize(event: Events) -> dict[str, Any]:
-    """Convert an Events row → plain JSON‑safe dict."""
+# ---------------------------------------------------------------------------
+# helpers
+# ---------------------------------------------------------------------------
+def _serialize(event: Events) -> dict:
+    """Convert SQLAlchemy row → plain dict."""
     return {
         "event_id":    event.event_id,
         "name":        event.name,
@@ -27,11 +26,12 @@ def _serialize(event: Events) -> dict[str, Any]:
         "zipcode":     event.zipcode,
         "urgency":     event.urgency.name,
         "date":        event.date.isoformat(),
-        "skills":      event.skills or [],
     }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# List endpoints
+
+# ---------------------------------------------------------------------------
+# list endpoints – new
+# ---------------------------------------------------------------------------
 @events_bp.get("/upcoming")
 def list_upcoming_events():
     now = datetime.utcnow()
@@ -42,6 +42,7 @@ def list_upcoming_events():
         .all()
     )
     return jsonify([_serialize(r) for r in rows]), 200
+
 
 @events_bp.get("/past")
 def list_past_events():
@@ -54,17 +55,19 @@ def list_past_events():
     )
     return jsonify([_serialize(r) for r in rows]), 200
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Single‑row CRUD
+
+# ---------------------------------------------------------------------------
+# single‑row CRUD (mostly unchanged – small tweaks)
+# ---------------------------------------------------------------------------
 @events_bp.get("/<int:event_id>")
 def get_event(event_id: int):
     row = Events.query.get_or_404(event_id)
     return jsonify(_serialize(row)), 200
 
+
 @events_bp.post("/create")
 def create_event():
-    data = request.get_json(force=True) or {}
-
+    data = request.get_json(force=True)
     new_row = Events(
         name        = data["name"],
         description = data["description"],
@@ -74,52 +77,43 @@ def create_event():
         zipcode     = data.get("zipcode"),
         urgency     = UrgencyEnum[data["urgency"]],
         date        = datetime.fromisoformat(data["date"]),
-        skills      = data.get("skills", []),
     )
-
     db.session.add(new_row)
     db.session.commit()
+    socketio.emit(
+        "event_assigned",
+        {**_serialize(new_row),
+        "message": f"🆕 New event '{new_row.name}' has been created!"},
+        broadcast=True
+    )
 
-    # Emit if socketio supports it
-    if hasattr(socketio, "emit"):
-        socketio.emit(
-            "event_assigned",
-            {
-                **_serialize(new_row),
-                "message": f"🆕 New event '{new_row.name}' has been created!",
-            },
-            broadcast=True,
-        )
 
     return jsonify({"event_id": new_row.event_id}), 201
+
 
 @events_bp.patch("/<int:event_id>")
 def update_event(event_id: int):
     row  = Events.query.get_or_404(event_id)
-    data = request.get_json(force=True) or {}
+    data = request.get_json(force=True)
 
-    # Only update fields we received
-    if "name"        in data: row.name        = data["name"]
-    if "description" in data: row.description = data["description"]
-    if "address"     in data: row.address     = data["address"]
-    if "city"        in data: row.city        = data["city"]
-    if "state_id"    in data: row.state_id    = data["state_id"]
-    if "zipcode"     in data: row.zipcode     = data["zipcode"]
-    if "urgency"     in data: row.urgency     = UrgencyEnum[data["urgency"]]
-    if "date"        in data: row.date        = datetime.fromisoformat(data["date"])
-    if "skills"      in data: row.skills      = data["skills"]
+    # only update what we’re sent
+    row.name        = data.get("name", row.name)
+    row.description = data.get("description", row.description)
+    row.address     = data.get("address", row.address)
+    row.city        = data.get("city", row.city)
+    row.state_id    = data.get("state_id", row.state_id)
+    row.zipcode     = data.get("zipcode", row.zipcode)
+    row.urgency     = UrgencyEnum[data.get("urgency", row.urgency.name)]
+    if "date" in data:
+        row.date = datetime.fromisoformat(data["date"])
 
     db.session.commit()
 
-    # Emit if socketio supports it
-    if hasattr(socketio, "emit"):
-        socketio.emit(
-            "event_update",
-            {
-                **_serialize(row),
-                "message": f"📅 Event '{row.name}' has been updated.",
-            },
-            broadcast=True,
-        )
+    socketio.emit(
+        "event_update",
+        {**_serialize(row),
+        "message": f"📅 Event '{row.name}' has been updated."},
+        broadcast=True
+    )
 
     return jsonify({"ok": True}), 200

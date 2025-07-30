@@ -1,7 +1,16 @@
+/*
+ *  frontend/src/pages/MatchingDashboard.tsx
+ *  ────────────────────────────────────────
+ *  Shows volunteer‑side event‑matching dashboard with filter panel.
+ *  Skills are loaded at runtime from GET /skills/ instead of a hard‑coded list.
+ */
+
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import {
+  Card, CardHeader, CardTitle, CardContent,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
 import { useAuth } from '@/context/AuthContext';
@@ -15,15 +24,31 @@ import {
 } from '@/lib/events';
 
 import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
+  Popover, PopoverTrigger, PopoverContent,
 } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronDownIcon } from 'lucide-react';
 
-/* ───────────────────────────── Types & constants ───────────────────────── */
+/* ───────────────────────── Helpers ───────────────────────── */
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
+
+/** Pull out a plain string[] of skills from an APIEvent */
+const extractSkills = (e: APIEvent): string[] => {
+  /* new backend: `skills: string[]` */
+  if (Array.isArray((e as any).skills)) {
+    return (e as any).skills.map((s: any) => (typeof s === 'string' ? s : s?.name ?? ''));
+  }
+  /* older aliases we still tolerate */
+  if (Array.isArray((e as any).requiredSkills)) return (e as any).requiredSkills;
+  if (Array.isArray((e as any).skill_names)) return (e as any).skill_names;
+  return [];
+};
+
+/* ───────────────────────── Types ───────────────────────── */
 interface ProfileDerived {
   city: string;
   state: string;
@@ -39,21 +64,11 @@ interface EventUI {
   name: string;
   requiredSkills: string[];
   urgency: 'High' | 'Medium' | 'Low';
-  date: string;  // yyyy‑mm‑dd
+  date: string;          // yyyy‑mm‑dd
   city: string;
   state: string;
   zipcode: string;
 }
-
-const SKILL_OPTIONS = [
-  'Leadership',
-  'Communication',
-  'Organization',
-  'Technical',
-  'Fundraising',
-  'Design',
-] as const;
-const ALL_SKILLS_CT = SKILL_OPTIONS.length;
 
 const STATE_OPTIONS = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS',
@@ -64,78 +79,46 @@ const STATE_OPTIONS = [
 
 const urgencyOptions: EventUI['urgency'][] = ['High', 'Medium', 'Low'];
 
-/* ────────────────────────────── Helpers ───────────────────────────────── */
-const iso = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate(),
-  ).padStart(2, '0')}`;
-
-const extractSkills = (e: APIEvent): string[] =>
-  Array.isArray((e as any).requiredSkills)
-    ? (e as any).requiredSkills
-    : Array.isArray((e as any).skills)
-    ? (e as any).skills.map((s: any) => (typeof s === 'string' ? s : s?.name ?? ''))
-    : Array.isArray((e as any).skill_names)
-    ? (e as any).skill_names
-    : [];
-
-const toUI = (e: APIEvent): EventUI => ({
-  id: String(e.event_id),
-  name: e.name ?? 'Untitled',
-  requiredSkills: extractSkills(e),
-  urgency:
-    (e.urgency || '').toLowerCase() === 'high'
-      ? 'High'
-      : (e.urgency || '').toLowerCase() === 'medium'
-      ? 'Medium'
-      : 'Low',
-  date: (e.date ?? '').slice(0, 10),
-  city: e.city ?? '',
-  state: (e.state_id ?? '').toUpperCase(),
-  zipcode: e.zipcode ?? '',
-});
-
-/* ─────────────────────────── Component ────────────────────────────────── */
+/* ───────────────────────── Component ─────────────────────── */
 export default function MatchingDashboard() {
   const { token } = useAuth();
 
+  /* global skills list (replaces old hard‑coded SKILL_OPTIONS) */
+  const [allSkills, setAllSkills]         = useState<string[]>([]);
+  const allSkillsCt = allSkills.length;
+
   /* profile */
-  const [profile, setProfile] = useState<ProfileDerived>({
-    city: '',
-    state: '',
-    zipcode: '',
-    availability: [],
-    skillIds: [],
-    skillNames: [],
-    role: 'Volunteer',
+  const [profile, setProfile]             = useState<ProfileDerived>({
+    city: '', state: '', zipcode: '', availability: [],
+    skillIds: [], skillNames: [], role: 'Volunteer',
   });
 
   /* events */
-  const [events, setEvents] = useState<EventUI[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [events, setEvents]               = useState<EventUI[]>([]);
+  const [loading, setLoading]             = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
 
   /* raw (editable) filters */
-  const [rawDates, setRawDates] = useState<Date[]>([]);
-  const [rawCity, setRawCity] = useState('');
-  const [rawState, setRawState] = useState('');
-  const [rawZip, setRawZip] = useState('');
-  const [rawUrgency, setRawUrgency] = useState<EventUI['urgency'] | ''>('');
-  const [rawSkills, setRawSkills] = useState<string[]>([]);
+  const [rawDates,    setRawDates]    = useState<Date[]>([]);
+  const [rawCity,     setRawCity]     = useState('');
+  const [rawState,    setRawState]    = useState('');
+  const [rawZip,      setRawZip]      = useState('');
+  const [rawUrgency,  setRawUrgency]  = useState<EventUI['urgency'] | ''>('');
+  const [rawSkills,   setRawSkills]   = useState<string[]>([]);
 
   /* applied filters */
-  const [datesFilter, setDatesFilter] = useState<Set<string>>(new Set());
-  const [cityFilter, setCityFilter] = useState('');
-  const [stateFilter, setStateFilter] = useState('');
-  const [zipFilter, setZipFilter] = useState('');
+  const [datesFilter,   setDatesFilter]   = useState<Set<string>>(new Set());
+  const [cityFilter,    setCityFilter]    = useState('');
+  const [stateFilter,   setStateFilter]   = useState('');
+  const [zipFilter,     setZipFilter]     = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState<EventUI['urgency'] | ''>('');
-  const [skillsFilter, setSkillsFilter] = useState<string[]>([]);
+  const [skillsFilter,  setSkillsFilter]  = useState<string[]>([]);
 
   /* popovers */
-  const [datesOpen, setDatesOpen] = useState(false);
+  const [datesOpen,  setDatesOpen]  = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
 
-  /* ─────────── Load profile & defaults ─────────── */
+  /* ─────────── Load skills, profile, defaults ─────────── */
   useEffect(() => {
     (async () => {
       try {
@@ -144,6 +127,11 @@ export default function MatchingDashboard() {
           token ? fetchMyProfile(token) : Promise.resolve(null),
         ]);
 
+        /* cache skill list */
+        const skillNamesMaster = (skillOpts as SkillOption[]).map((s) => s.name);
+        setAllSkills(skillNamesMaster);
+
+        /* map id → name for profile skillIds */
         const skillMap = new Map<number, string>(
           (skillOpts as SkillOption[]).map((s) => [s.id, s.name]),
         );
@@ -168,20 +156,21 @@ export default function MatchingDashboard() {
 
         /* initialise RAW filters with profile values */
         setRawDates([new Date(firstAvail)]);
-        setRawSkills(skillNames.filter((s) => SKILL_OPTIONS.includes(s as any)));
+        setRawSkills(skillNames.filter((s) => skillNamesMaster.includes(s)));
         setRawCity(p?.city ?? '');
         setRawState((p?.state ?? '').toUpperCase());
         setRawZip(p?.zipcode ?? '');
 
         /* sync applied filters */
         setDatesFilter(new Set([firstAvail]));
-        setSkillsFilter(skillNames.filter((s) => SKILL_OPTIONS.includes(s as any)));
+        setSkillsFilter(skillNames.filter((s) => skillNamesMaster.includes(s)));
         setCityFilter(p?.city ?? '');
         setStateFilter((p?.state ?? '').toUpperCase());
         setZipFilter(p?.zipcode ?? '');
 
         setProfileLoaded(true);
       } catch {
+        /* if anything fails, still show UI (skill list empty) */
         setProfileLoaded(true);
       }
     })();
@@ -193,7 +182,6 @@ export default function MatchingDashboard() {
       setLoading(true);
       try {
         const [u, p] = await Promise.all([listUpcomingEvents(), listPastEvents()]);
-        /* combine and map to UI objects */
         setEvents([...u, ...p].map(toUI));
       } finally {
         setLoading(false);
@@ -203,17 +191,13 @@ export default function MatchingDashboard() {
 
   /* datalists */
   const uniqueCities = useMemo(
-    () =>
-      [...new Set(events.map((e) => e.city.trim()))]
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b)),
+    () => [...new Set(events.map((e) => e.city.trim()))]
+      .filter(Boolean).sort((a, b) => a.localeCompare(b)),
     [events],
   );
   const uniqueZips = useMemo(
-    () =>
-      [...new Set(events.map((e) => e.zipcode.trim()))]
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b)),
+    () => [...new Set(events.map((e) => e.zipcode.trim()))]
+      .filter(Boolean).sort((a, b) => a.localeCompare(b)),
     [events],
   );
 
@@ -232,24 +216,17 @@ export default function MatchingDashboard() {
       if (urgencyFilter && e.urgency !== urgencyFilter) return false;
       if (
         skillsFilter.length &&
-        skillsFilter.length < ALL_SKILLS_CT &&
+        skillsFilter.length < allSkillsCt &&
         !skillsFilter.some((s) =>
-          e.requiredSkills
-            .map((x) => x.toLowerCase().trim())
-            .includes(s.toLowerCase().trim()),
+          e.requiredSkills.map((x) => x.toLowerCase().trim()).includes(s.toLowerCase().trim()),
         )
       )
         return false;
       return true;
     });
   }, [
-    events,
-    datesFilter,
-    cityFilter,
-    stateFilter,
-    zipFilter,
-    urgencyFilter,
-    skillsFilter,
+    events, datesFilter, cityFilter, stateFilter, zipFilter,
+    urgencyFilter, skillsFilter, allSkillsCt,
   ]);
 
   /* actions */
@@ -263,18 +240,10 @@ export default function MatchingDashboard() {
   };
 
   const clearAll = () => {
-    setRawDates([]);
-    setRawCity('');
-    setRawState('');
-    setRawZip('');
-    setRawUrgency('');
-    setRawSkills([]);
-
-    setDatesFilter(new Set());
-    setCityFilter('');
-    setStateFilter('');
-    setZipFilter('');
-    setUrgencyFilter('');
+    setRawDates([]); setRawCity(''); setRawState('');
+    setRawZip(''); setRawUrgency(''); setRawSkills([]);
+    setDatesFilter(new Set()); setCityFilter('');
+    setStateFilter(''); setZipFilter(''); setUrgencyFilter('');
     setSkillsFilter([]);
   };
 
@@ -283,26 +252,41 @@ export default function MatchingDashboard() {
     setRawSkills((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
 
   const dateLabel =
-    rawDates.length === 0
-      ? 'Any'
-      : rawDates.length === 1
-      ? iso(rawDates[0])
+    rawDates.length === 0 ? 'Any'
+      : rawDates.length === 1 ? iso(rawDates[0])
       : `${rawDates.length} dates`;
+
   const skillLabel =
-    rawSkills.length === 0
-      ? 'Any'
-      : rawSkills.length === 1
-      ? rawSkills[0]
-      : rawSkills.length === ALL_SKILLS_CT
-      ? 'Any'
+    rawSkills.length === 0 ? 'Any'
+      : rawSkills.length === 1 ? rawSkills[0]
+      : rawSkills.length === allSkillsCt ? 'Any'
       : `${rawSkills.length} selected`;
+
+  /* mapping helper */
+  function toUI(e: APIEvent): EventUI {
+    return {
+      id: String(e.event_id),
+      name: e.name ?? 'Untitled',
+      requiredSkills: extractSkills(e),
+      urgency:
+        (e.urgency || '').toLowerCase() === 'high'   ? 'High'
+      : (e.urgency || '').toLowerCase() === 'medium' ? 'Medium'
+      : 'Low',
+      date: (e.date ?? '').slice(0, 10),
+      city: e.city ?? '',
+      state: (e.state_id ?? '').toUpperCase(),
+      zipcode: e.zipcode ?? '',
+    };
+  }
 
   if (loading || !profileLoaded) return <main className="p-6">Loading…</main>;
 
-  /* ─────────── UI ─────────── */
+  /* ───────────────────────── UI ───────────────────────── */
   return (
     <main className="min-h-screen bg-[var(--color-ash_gray-500)] p-6">
-      <h1 className="text-3xl font-bold mb-4 text-[var(--color-charcoal-100)]">Event Matches</h1>
+      <h1 className="text-3xl font-bold mb-4 text-[var(--color-charcoal-100)]">
+        Event Matches
+      </h1>
 
       {/* Filter panel */}
       <div className="mb-6 bg-white shadow rounded-xl p-4 space-y-4">
@@ -355,9 +339,7 @@ export default function MatchingDashboard() {
               className="mt-1 block w-full p-2 border rounded-lg"
             />
             <datalist id="city-list">
-              {uniqueCities.map((c) => (
-                <option key={c} value={c} />
-              ))}
+              {uniqueCities.map((c) => <option key={c} value={c} />)}
             </datalist>
           </div>
 
@@ -372,11 +354,7 @@ export default function MatchingDashboard() {
               className="mt-1 block w-full p-2 border rounded-lg"
             >
               <option value="">Any</option>
-              {STATE_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
+              {STATE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
@@ -393,9 +371,7 @@ export default function MatchingDashboard() {
               className="mt-1 block w-full p-2 border rounded-lg"
             />
             <datalist id="zip-list">
-              {uniqueZips.map((z) => (
-                <option key={z} value={z} />
-              ))}
+              {uniqueZips.map((z) => <option key={z} value={z} />)}
             </datalist>
           </div>
 
@@ -410,11 +386,7 @@ export default function MatchingDashboard() {
               className="mt-1 block w-full p-2 border rounded-lg"
             >
               <option value="">Any</option>
-              {urgencyOptions.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
+              {urgencyOptions.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
           </div>
 
@@ -439,11 +411,8 @@ export default function MatchingDashboard() {
                   <span>Any</span>
                 </label>
                 <hr className="my-1" />
-                {SKILL_OPTIONS.map((sk) => (
-                  <label
-                    key={sk}
-                    className="flex items-center gap-2 text-sm cursor-pointer"
-                  >
+                {allSkills.map((sk) => (
+                  <label key={sk} className="flex items-center gap-2 text-sm cursor-pointer">
                     <Checkbox
                       checked={rawSkills.includes(sk)}
                       onCheckedChange={() => toggleSkill(sk)}
@@ -458,12 +427,8 @@ export default function MatchingDashboard() {
 
         {/* buttons */}
         <div className="flex justify-end gap-2">
-          <Button size="sm" onClick={applyFilters}>
-            Apply Filters
-          </Button>
-          <Button size="sm" variant="outline" onClick={clearAll}>
-            Clear Filters
-          </Button>
+          <Button size="sm" onClick={applyFilters}>Apply Filters</Button>
+          <Button size="sm" variant="outline" onClick={clearAll}>Clear Filters</Button>
         </div>
       </div>
 
@@ -471,14 +436,10 @@ export default function MatchingDashboard() {
       <div className="grid gap-6 md:grid-cols-2">
         {visibleEvents.map((e) => (
           <Card key={e.id} className="bg-white shadow-lg rounded-2xl">
-            <CardHeader>
-              <CardTitle>{e.name}</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>{e.name}</CardTitle></CardHeader>
             <CardContent>
               <p><strong>Date:</strong> {e.date}</p>
-              <p>
-                <strong>Location:</strong> {`${e.city}, ${e.state}`}  {e.zipcode}
-              </p>
+              <p><strong>Location:</strong> {`${e.city}, ${e.state}`}  {e.zipcode}</p>
               <p><strong>Urgency:</strong> {e.urgency}</p>
               <p>
                 <strong>Skills:</strong>{' '}
