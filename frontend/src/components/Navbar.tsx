@@ -20,17 +20,17 @@ function getNavForRole(role: string | null): NavItem[] {
     return [
       { name: 'Volunteer Home', href: '/volunteer' },
       { name: 'Tasks', href: '/volunteer/task' },
-      { name: 'Profile', href: '/volunteer/manage' },
-      { name: 'Matching', href: '/volunteer/matching' },
+      { name: 'Profile Management', href: '/volunteer/manage' },
+      { name: 'Event Matching', href: '/volunteer/matching' },
     ];
   }
   // ADMIN
   if (role === 'ADMIN') {
     return [
       { name: 'Admin Home', href: '/admin' },
-      { name: 'Approval Queue', href: '/admin/approval' },
+      { name: 'Admin Approval', href: '/admin/approval' },
       { name: 'Volunteer History', href: '/admin/history' },
-      { name: 'Create Event', href: '/admin/event/creation' },
+      { name: 'Event Management', href: '/admin/event/creation' },
       { name: 'Volunteer Matching', href: '/admin/matching' },
     ];
   }

@@ -139,7 +139,6 @@ const LoginPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between">
                 <label htmlFor="password" className={labelClass}>Password</label>
-                <a href="#" className="text-sm text-[var(--color-cambridge_blue-600)] hover:text-[var(--color-cambridge_blue-500)] transition-colors">Forgot password?</a>
               </div>
               <Input
                 id="password"
