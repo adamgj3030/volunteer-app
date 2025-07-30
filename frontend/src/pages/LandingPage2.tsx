@@ -14,6 +14,7 @@ import Slider, { Settings } from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import '@/styles/landingPage.css';
+import { Link } from "react-router-dom";
 const LandingPage: React.FC = () => {
   const sliderRef = useRef<Slider>(null);
 
@@ -60,7 +61,7 @@ const LandingPage: React.FC = () => {
             variant="secondary"
             className="bg-[var(--color-cambridge_blue-500)] hover:bg-[var(--color-cambridge_blue-600)] focus:ring-[var(--color-cambridge_blue-300)]"
           >
-            Get Started
+            <Link to="/register">Get Started</Link>
           </Button>
         </div>
       </header>
@@ -172,7 +173,7 @@ const LandingPage: React.FC = () => {
           size="lg"
           className="bg-[var(--color-hookers_green-500)] hover:bg-[var(--color-hookers_green-600)] focus:ring-[var(--color-hookers_green-300)]"
         >
-          Join Now
+          <Link to="/register">Join Now</Link>
         </Button>
       </section>
 
