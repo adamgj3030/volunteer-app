@@ -2,10 +2,15 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import {
+  fetchMatchingEvents,
   fetchVolunteerMatching,
   saveVolunteerMatch,
   fetchSavedMatches,
+  type Event,
+  type Volunteer,
+  type TaskMatch,
 } from "@/lib/api";
+
 import {
   Form,
   FormField,
@@ -26,51 +31,30 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-import type { Volunteer, Event } from "@/types/type";
-
-type VolunteerMatchFormValues = {
+type FormValues = {
   matchedEventId: string;
   volunteerId: string;
 };
 
 export default function VolunteerMatchingPage() {
+  const [events, setEvents] = useState<Event[]>([]);
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
-  const [savedMatches, setSavedMatches] = useState<
-    { eventId: string; volunteerId: string }[]
-  >([]);
+  const [savedMatches, setSavedMatches] = useState<TaskMatch[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [events] = useState<Event[]>([
-    {
-      id: "e1",
-      name: "Community Clean-Up",
-      requiredSkills: ["Cleaning"],
-      urgency: "High",
-      date: "2025-07-10",
-    },
-    {
-      id: "e2",
-      name: "Food Drive",
-      requiredSkills: ["Cooking"],
-      urgency: "Medium",
-      date: "2025-07-11",
-    },
-    {
-      id: "e3",
-      name: "Tree Planting",
-      requiredSkills: ["Planting"],
-      urgency: "Low",
-      date: "2025-07-12",
-    },
-    // …more events
-  ]);
-
-  const form = useForm<VolunteerMatchFormValues>({
+  const form = useForm<FormValues>({
     defaultValues: { matchedEventId: "", volunteerId: "" },
   });
   const selectedEventId = form.watch("matchedEventId");
 
-  // fetch & rank volunteers when event changes
+  // load events
+  useEffect(() => {
+    fetchMatchingEvents()
+      .then(setEvents)
+      .catch(console.error);
+  }, []);
+
+  // fetch & auto-select volunteers when event changes
   useEffect(() => {
     if (!selectedEventId) {
       setVolunteers([]);
@@ -82,30 +66,27 @@ export default function VolunteerMatchingPage() {
         setVolunteers(list);
         form.setValue("volunteerId", list[0]?.id || "");
       })
-      .catch((err) => console.error(err));
+      .catch(console.error);
   }, [selectedEventId, form]);
 
-  // load saved matches on mount
+  // load saved matches
   useEffect(() => {
     fetchSavedMatches()
       .then(setSavedMatches)
-      .catch((err) => console.error("Failed to load saved matches:", err));
+      .catch(console.error);
   }, []);
 
-  // handle form submit
-  const onSubmit = async (data: VolunteerMatchFormValues) => {
+  const onSubmit = async (data: FormValues) => {
     setIsSaving(true);
     try {
       await saveVolunteerMatch({
-        matchedEventId: data.matchedEventId,
+        eventId: data.matchedEventId,
         volunteerId: data.volunteerId,
       });
-      // append to local state
       setSavedMatches((prev) => [
         ...prev,
         { eventId: data.matchedEventId, volunteerId: data.volunteerId },
       ]);
-      alert("Match saved!");
     } catch (err) {
       console.error(err);
       alert("Failed to save match");
@@ -212,12 +193,8 @@ export default function VolunteerMatchingPage() {
                                 <TableCell className="font-medium">
                                   {v.fullName}
                                 </TableCell>
-                                <TableCell>
-                                  {v.skills.join(", ")}
-                                </TableCell>
-                                <TableCell>
-                                  {v.availability.join(", ")}
-                                </TableCell>
+                                <TableCell>{v.skills.join(", ")}</TableCell>
+                                <TableCell>{v.availability.join(", ")}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -233,12 +210,10 @@ export default function VolunteerMatchingPage() {
               {selectedVolunteer && (
                 <div className="p-4 bg-white border rounded-lg">
                   <p>
-                    <strong>Skills:</strong>{" "}
-                    {selectedVolunteer.skills.join(", ")}
+                    <strong>Skills:</strong> {selectedVolunteer.skills.join(", ")}
                   </p>
                   <p>
-                    <strong>Availability:</strong>{" "}
-                    {selectedVolunteer.availability.join(", ")}
+                    <strong>Availability:</strong> {selectedVolunteer.availability.join(", ")}
                   </p>
                 </div>
               )}
