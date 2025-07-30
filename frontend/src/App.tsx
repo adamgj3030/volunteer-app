@@ -34,12 +34,12 @@ function App() {
           <Route path="/volunteer/task" element={<ProtectedRoute allow={['ADMIN', 'VOLUNTEER']}><TaskList/></ProtectedRoute>} />
           <Route path="/volunteer/manage" element={<ProtectedRoute allow={['ADMIN', 'VOLUNTEER']}><ProfileForm/></ProtectedRoute>} />
           <Route path="/volunteer/matching" element={<ProtectedRoute allow={['ADMIN', 'VOLUNTEER']}><EventMatching /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><AdminLanding /></ProtectedRoute>} />
-          <Route path="/admin/approval" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><AdminManage /></ProtectedRoute>} />
-          <Route path="/admin/history" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><VolunteerHistory /></ProtectedRoute>} />
-          <Route path="/admin/event/creation" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><EventForm /></ProtectedRoute>} />
-          <Route path="/admin/matching" element={<ProtectedRoute allow={['ADMIN']} redirectTo="/login"><VolunteerMatchingPage /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute allow={[]} redirectTo="/login"><NotificationsTesting /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allow={['ADMIN']} ><AdminLanding /></ProtectedRoute>} />
+          <Route path="/admin/approval" element={<ProtectedRoute allow={['ADMIN']} ><AdminManage /></ProtectedRoute>} />
+          <Route path="/admin/history" element={<ProtectedRoute allow={['ADMIN']} ><VolunteerHistory /></ProtectedRoute>} />
+          <Route path="/admin/event/creation" element={<ProtectedRoute allow={['ADMIN']} ><EventForm /></ProtectedRoute>} />
+          <Route path="/admin/matching" element={<ProtectedRoute allow={['ADMIN']} ><VolunteerMatchingPage /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute allow={[]} ><NotificationsTesting /></ProtectedRoute>} />
         </Routes>
       </main>
     </Router>
