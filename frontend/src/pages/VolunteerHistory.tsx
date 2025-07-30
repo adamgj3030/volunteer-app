@@ -19,8 +19,6 @@ import type {
   SortableKeys,
   Volunteer
 } from "@/types/type";
-// if you have a static dataset you can rename it to avoid shadowing:
-// import { volunteers as initialVolunteers } from "@/types/data";
 
 export default function VolunteerHistory() {
   const [searchTerm,    setSearchTerm]    = useState("");
@@ -35,23 +33,22 @@ export default function VolunteerHistory() {
     direction: "descending",
   });
 
-  // fetched volunteer history
+  /* ---------- fetch volunteer history ---------- */
   const [volunteerData, setVolunteerData] = useState<Volunteer[]>([]);
 
- useEffect(() => {
-  async function loadHistory() {
-    try {
-      const data = await fetchVolunteerHistory();
-      setVolunteerData(data);
-      console.log("Volunteer history loaded:", data);
-    } catch (err) {
-      console.error("Failed to load history:", err);
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        const data = await fetchVolunteerHistory();
+        setVolunteerData(data);
+      } catch (err) {
+        console.error("Failed to load history:", err);
+      }
     }
-  }
-  loadHistory();
-}, []);
+    loadHistory();
+  }, []);
 
-  // 1️⃣ flatten each volunteer → one row per event
+  /* ---------- flatten: one volunteer-event per row ---------- */
   interface FlattenedEvent {
     email: string;
     name: string;
@@ -80,29 +77,23 @@ export default function VolunteerHistory() {
     );
   }, [volunteerData]);
 
-  // 2️⃣ filter & sort in one go
+  /* ---------- filter & sort ---------- */
   const filteredAndSorted = useMemo(() => {
     let data = [...flattened];
 
-    // filter by search term on volunteer name
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      data = data.filter((row) =>
-        row.name.toLowerCase().includes(term)
-      );
+      data = data.filter((row) => row.name.toLowerCase().includes(term));
     }
 
-    // filter by status
     if (statusFilter !== "all") {
       data = data.filter((row) => row.status === statusFilter);
     }
 
-    // filter by urgency
     if (urgencyFilter !== "all") {
       data = data.filter((row) => row.urgency === urgencyFilter);
     }
 
-    // sort
     data.sort((a, b) => {
       const A = a[sortConfig.key];
       const B = b[sortConfig.key];
@@ -125,9 +116,7 @@ export default function VolunteerHistory() {
   };
 
   const getSortIcon = (key: SortableKeys) => {
-    if (sortConfig.key !== key) {
-      return <ArrowUpDown className="ml-2 h-4 w-4" />;
-    }
+    if (sortConfig.key !== key) return <ArrowUpDown className="ml-2 h-4 w-4" />;
     return sortConfig.direction === "ascending" ? (
       <ArrowUp className="ml-2 h-4 w-4 text-[#84a98c]" />
     ) : (
@@ -135,6 +124,7 @@ export default function VolunteerHistory() {
     );
   };
 
+  /* ---------- UI ---------- */
   return (
     <div className="bg-[var(--color-ash_gray-500)] min-h-screen py-10">
       <div className="container max-w-screen-3xl mx-auto bg-[var(--color-ash_gray-900)] p-10">
@@ -142,6 +132,7 @@ export default function VolunteerHistory() {
           Volunteer Participation History
         </h1>
 
+        {/* filters */}
         <div className="flex items-center gap-4 mb-6">
           <Input
             placeholder="Search by volunteer name…"
@@ -183,11 +174,10 @@ export default function VolunteerHistory() {
           </Select>
         </div>
 
+        {/* table */}
         <div className="rounded-md border border-[#cad2c5]">
           <Table>
-            <TableCaption>
-              A list of volunteer participation history.
-            </TableCaption>
+            <TableCaption>A list of volunteer participation history.</TableCaption>
             <TableHeader>
               <TableRow className="border-b border-[#cad2c5]">
                 {(
@@ -223,18 +213,15 @@ export default function VolunteerHistory() {
                   key={`${item.email}-${item.eventName}-${item.eventDate}`}
                   className="border-b hover:bg-[#f4f6f3]"
                 >
-                  <TableCell className="font-medium">
-                    {item.name}
-                  </TableCell>
+                  {/* 1  Volunteer Name */}
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  {/* 2  Email */}
                   <TableCell>{item.email}</TableCell>
+                  {/* 3  Event Name */}
                   <TableCell className="font-medium text-[#354f52]">
                     {item.eventName}
                   </TableCell>
-                  <TableCell>{item.description}</TableCell>
-                  <TableCell>{item.location}</TableCell>
-                  <TableCell>
-                    {item.requiredSkills.join(", ")}
-                  </TableCell>
+                  {/* 4  Urgency */}
                   <TableCell>
                     <Badge
                       variant={
@@ -248,18 +235,22 @@ export default function VolunteerHistory() {
                       {item.urgency}
                     </Badge>
                   </TableCell>
+                  {/* 5  Event Date */}
                   <TableCell>{item.eventDate}</TableCell>
+                  {/* 6  Status */}
                   <TableCell>
                     <Badge
-                      variant={
-                        item.status === "Cancelled"
-                          ? "outline"
-                          : "default"
-                      }
+                      variant={item.status === "Cancelled" ? "outline" : "default"}
                     >
                       {item.status}
                     </Badge>
                   </TableCell>
+                  {/* 7  Description */}
+                  <TableCell>{item.description}</TableCell>
+                  {/* 8  Location */}
+                  <TableCell>{item.location}</TableCell>
+                  {/* 9  Required Skills */}
+                  <TableCell>{item.requiredSkills.join(", ")}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

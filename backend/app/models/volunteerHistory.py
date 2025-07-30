@@ -20,6 +20,7 @@ class VolunteerHistory(db.Model):
     event_id = db.Column(db.Integer, db.ForeignKey('events.event_id'), nullable=False)
     participation_status = db.Column(db.Enum(ParticipationStatusEnum), nullable=False)
     hours_volunteered = db.Column(db.Numeric(4,2), nullable=True)
+    
 
     
 def __repr__(self):

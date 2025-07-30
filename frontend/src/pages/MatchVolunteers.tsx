@@ -8,53 +8,46 @@ import {
   fetchSavedMatches,
   type Event,
   type Volunteer,
-  type TaskMatch,
+  type TaskMatch,   // ← • eventName? & volunteerName? added in lib/api.ts
 } from "@/lib/api";
 
 import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
+  Form, FormField, FormItem, FormLabel,
+  FormControl, FormMessage,
 } from "@/components/ui/form";
 import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCaption, TableCell,
+  TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
-type FormValues = {
-  matchedEventId: string;
-  volunteerId: string;
-};
+type FormValues = { matchedEventId: string; volunteerId: string };
 
 export default function VolunteerMatchingPage() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
-  const [savedMatches, setSavedMatches] = useState<TaskMatch[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
+  /* ------------------------------------------------------------------ */
+  /* State                                                               */
+  /* ------------------------------------------------------------------ */
+  const [events,        setEvents]        = useState<Event[]>([]);
+  const [volunteers,    setVolunteers]    = useState<Volunteer[]>([]);
+  const [savedMatches,  setSavedMatches]  = useState<TaskMatch[]>([]);
+  const [isSaving,      setIsSaving]      = useState(false);
 
   const form = useForm<FormValues>({
     defaultValues: { matchedEventId: "", volunteerId: "" },
   });
   const selectedEventId = form.watch("matchedEventId");
 
-  // load events
+  /* ------------------------------------------------------------------ */
+  /* Initial data loads                                                 */
+  /* ------------------------------------------------------------------ */
+  useEffect(() => { fetchMatchingEvents().then(setEvents).catch(console.error); }, []);
+
   useEffect(() => {
-    fetchMatchingEvents()
-      .then(setEvents)
-      .catch(console.error);
+    fetchSavedMatches().then(setSavedMatches).catch(console.error);
   }, []);
 
-  // fetch & auto-select volunteers when event changes
+  /* When event changes, fetch volunteer suggestions */
   useEffect(() => {
     if (!selectedEventId) {
       setVolunteers([]);
@@ -69,23 +62,23 @@ export default function VolunteerMatchingPage() {
       .catch(console.error);
   }, [selectedEventId, form]);
 
-  // load saved matches
-  useEffect(() => {
-    fetchSavedMatches()
-      .then(setSavedMatches)
-      .catch(console.error);
-  }, []);
-
-  const onSubmit = async (data: FormValues) => {
+  /* ------------------------------------------------------------------ */
+  /* Submit handler                                                     */
+  /* ------------------------------------------------------------------ */
+  const onSubmit = async ({ matchedEventId, volunteerId }: FormValues) => {
     setIsSaving(true);
     try {
-      await saveVolunteerMatch({
-        eventId: data.matchedEventId,
-        volunteerId: data.volunteerId,
-      });
+      await saveVolunteerMatch({ eventId: matchedEventId, volunteerId });
+      const ev  = events.find((e) => e.id === matchedEventId);
+      const vol = volunteers.find((v) => v.id === volunteerId);
       setSavedMatches((prev) => [
         ...prev,
-        { eventId: data.matchedEventId, volunteerId: data.volunteerId },
+        {
+          eventId:      matchedEventId,
+          volunteerId,
+          eventName:    ev?.name,
+          volunteerName: vol?.fullName,
+        },
       ]);
     } catch (err) {
       console.error(err);
@@ -95,23 +88,28 @@ export default function VolunteerMatchingPage() {
     }
   };
 
+  /* ------------------------------------------------------------------ */
+  /* Derived selections                                                 */
+  /* ------------------------------------------------------------------ */
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   const selectedVolunteer = volunteers.find(
     (v) => v.id === form.getValues("volunteerId")
   );
 
+  /* ------------------------------------------------------------------ */
+  /* Render                                                             */
+  /* ------------------------------------------------------------------ */
   return (
     <main className="min-h-screen bg-[var(--color-ash_gray-500)] flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl bg-white shadow-xl rounded-2xl">
         <CardHeader className="py-6 text-center">
-          <CardTitle className="text-3xl font-extrabold">
-            Volunteer Matching
-          </CardTitle>
+          <CardTitle className="text-3xl font-extrabold">Volunteer Matching</CardTitle>
         </CardHeader>
+
         <CardContent className="space-y-6 p-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              {/* Event selection */}
+              {/* ---------------- Event selection ---------------- */}
               <FormField
                 control={form.control}
                 name="matchedEventId"
@@ -142,23 +140,16 @@ export default function VolunteerMatchingPage() {
                 )}
               />
 
-              {/* Event details */}
+              {/* ---------------- Event details ---------------- */}
               {selectedEvent && (
                 <div className="p-4 bg-white border rounded-lg">
-                  <p>
-                    <strong>Required Skills:</strong>{" "}
-                    {selectedEvent.requiredSkills.join(", ")}
-                  </p>
-                  <p>
-                    <strong>Urgency:</strong> {selectedEvent.urgency}
-                  </p>
-                  <p>
-                    <strong>Date:</strong> {selectedEvent.date}
-                  </p>
+                  <p><strong>Required Skills:</strong> {selectedEvent.requiredSkills.join(", ")}</p>
+                  <p><strong>Urgency:</strong> {selectedEvent.urgency}</p>
+                  <p><strong>Date:</strong> {selectedEvent.date}</p>
                 </div>
               )}
 
-              {/* Suggested volunteers */}
+              {/* ---------------- Suggested volunteers ---------------- */}
               <FormField
                 control={form.control}
                 name="volunteerId"
@@ -190,9 +181,7 @@ export default function VolunteerMatchingPage() {
                                     : "hover:bg-gray-50"
                                 }`}
                               >
-                                <TableCell className="font-medium">
-                                  {v.fullName}
-                                </TableCell>
+                                <TableCell className="font-medium">{v.fullName}</TableCell>
                                 <TableCell>{v.skills.join(", ")}</TableCell>
                                 <TableCell>{v.availability.join(", ")}</TableCell>
                               </TableRow>
@@ -206,15 +195,11 @@ export default function VolunteerMatchingPage() {
                 )}
               />
 
-              {/* Volunteer details */}
+              {/* ---------------- Volunteer details ---------------- */}
               {selectedVolunteer && (
                 <div className="p-4 bg-white border rounded-lg">
-                  <p>
-                    <strong>Skills:</strong> {selectedVolunteer.skills.join(", ")}
-                  </p>
-                  <p>
-                    <strong>Availability:</strong> {selectedVolunteer.availability.join(", ")}
-                  </p>
+                  <p><strong>Skills:</strong> {selectedVolunteer.skills.join(", ")}</p>
+                  <p><strong>Availability:</strong> {selectedVolunteer.availability.join(", ")}</p>
                 </div>
               )}
 
@@ -224,7 +209,7 @@ export default function VolunteerMatchingPage() {
             </form>
           </Form>
 
-          {/* Saved matches list */}
+          {/* ---------------- Saved matches ---------------- */}
           <div className="mt-8">
             <h2 className="text-xl font-bold">Saved Matches</h2>
             {savedMatches.length === 0 ? (
@@ -232,20 +217,24 @@ export default function VolunteerMatchingPage() {
             ) : (
               <div className="border rounded-lg max-h-60 overflow-y-auto mt-2">
                 <Table>
-                  <TableCaption className="sr-only">
-                    List of saved matches
-                  </TableCaption>
+                  <TableCaption className="sr-only">List of saved matches</TableCaption>
                   <TableHeader>
                     <TableRow className="bg-gray-100">
-                      <TableHead>Event ID</TableHead>
-                      <TableHead>Volunteer ID</TableHead>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Volunteer</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {savedMatches.map((m, idx) => (
                       <TableRow key={idx}>
-                        <TableCell>{m.eventId}</TableCell>
-                        <TableCell>{m.volunteerId}</TableCell>
+                        <TableCell>
+                          {(m.eventName ?? "Unknown")}{" "}
+                          <span className="text-gray-500">[{m.eventId}]</span>
+                        </TableCell>
+                        <TableCell>
+                          {(m.volunteerName ?? "Unknown")}{" "}
+                          <span className="text-gray-500">[{m.volunteerId}]</span>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

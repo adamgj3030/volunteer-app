@@ -162,11 +162,13 @@ export type Volunteer = {
   availability: string[];
 };
 
-export type TaskMatch = {
-  eventId: string;
-  volunteerId: string;
-};
-
+export interface TaskMatch {
+  eventId: number;
+  volunteerId: number;
+ //for the UI in saved matches
+  eventName?: string;
+  volunteerName?: string;
+}
 // fetch list of events
 export async function fetchMatchingEvents(): Promise<Event[]> {
   const res = await fetch(buildUrl("/volunteer/matching/events"));
