@@ -218,23 +218,25 @@ export type Task = {
 };
 
 // Fetch the volunteer’s tasks (assigned, registered, completed)
-export async function fetchVolunteerTasks(): Promise<Task[]> {
-  const res = await fetch(buildUrl("/tasks"));
+/** Fetch tasks that belong to a single volunteer. */
+export async function fetchVolunteerTasks(
+  volunteerId: number
+): Promise<Task[]> {
+  const res = await fetch(buildUrl(`/tasks?volunteerId=${volunteerId}`));
   if (!res.ok) throw new Error("Failed to load volunteer tasks");
   return (await res.json()) as Task[];
 }
 
-// Update a task’s status (register, cancel, etc.)
-export async function updateTaskStatus(
-  taskId: string,
-  status: Task["status"]
-): Promise<void> {
+/** Update this volunteer’s task status (register / cancel). */
+export async function updateTaskStatus(payload: {
+  taskId: string;
+  status: Task["status"];
+  volunteerId: number;
+}): Promise<void> {
   const res = await fetch(buildUrl("/tasks/status"), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ taskId, status }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload), // { taskId, status, volunteerId }
   });
   if (!res.ok) throw new Error("Failed to update task status");
 }

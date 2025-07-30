@@ -7,31 +7,42 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+/** How your app stores the logged-in user’s ID.
+ *  Adjust as needed (e.g. from context, Redux, or cookie). */
+const currentVolunteerId = Number(localStorage.getItem("userId") || 0);
+
 export default function TaskList() {
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  // 1️⃣ Load tasks on mount
+  /* ──────────────────────────────────────────────────────────────────
+     1) Load tasks belonging to this volunteer
+     ────────────────────────────────────────────────────────────────── */
   useEffect(() => {
-    fetchVolunteerTasks()
+    if (!currentVolunteerId) return; // no ID ➜ nothing to load
+    fetchVolunteerTasks(currentVolunteerId)
       .then(setTasks)
       .catch((err) => console.error("Failed to load tasks:", err));
   }, []);
 
-  // 2️⃣ Handle register/cancel actions
+  /* ──────────────────────────────────────────────────────────────────
+     2) Register / cancel
+     ────────────────────────────────────────────────────────────────── */
   const handleAction = async (task: Task) => {
     let newStatus: Task["status"];
-    if (task.status === "assigned") {
-      newStatus = "registered";
-    } else if (task.status === "registered") {
-      newStatus = "assigned";
-    } else {
-      return; // no action for completed
-    }
+    if (task.status === "assigned")      newStatus = "registered";
+    else if (task.status === "registered") newStatus = "assigned";
+    else return; // completed → no action
 
     try {
-      await updateTaskStatus(task.id, newStatus);
+      await updateTaskStatus({
+        taskId:     task.id,
+        status:     newStatus,
+        volunteerId: currentVolunteerId,
+      });
       setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
+        prev.map((t) =>
+          t.id === task.id ? { ...t, status: newStatus } : t
+        )
       );
     } catch (err) {
       console.error("Failed to update task status:", err);
@@ -39,6 +50,9 @@ export default function TaskList() {
     }
   };
 
+  /* ──────────────────────────────────────────────────────────────────
+     3) UI
+     ────────────────────────────────────────────────────────────────── */
   return (
     <div className="space-y-4">
       {tasks.map((t) => (
@@ -47,15 +61,9 @@ export default function TaskList() {
             <CardTitle className="text-lg font-semibold">{t.title}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            <p>
-              <strong>Description:</strong> {t.description}
-            </p>
-            <p>
-              <strong>Assignee:</strong> {t.assignee}
-            </p>
-            <p>
-              <strong>Due:</strong> {new Date(t.date).toLocaleDateString()}
-            </p>
+            <p><strong>Description:</strong> {t.description}</p>
+            <p><strong>Assignee:</strong> {t.assignee}</p>
+            <p><strong>Due:</strong> {new Date(t.date).toLocaleDateString()}</p>
             <p>
               <strong>Status:</strong>{" "}
               <span
@@ -70,6 +78,7 @@ export default function TaskList() {
                 {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
               </span>
             </p>
+
             {t.status !== "completed" && (
               <Button
                 variant={t.status === "assigned" ? "default" : "destructive"}
@@ -84,3 +93,4 @@ export default function TaskList() {
     </div>
   );
 }
+

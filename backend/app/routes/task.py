@@ -1,61 +1,102 @@
 # app/routes/task_list.py
+# app/routes/task.py
+from flask import Blueprint, jsonify, request
+from sqlalchemy import update
+from app.imports import db
+from app.models.volunteerHistory import (
+    VolunteerHistory,
+    ParticipationStatusEnum,
+)
+from app.models.events import Events
+from app.models.userCredentials import UserCredentials
 
-from flask import Blueprint, request, jsonify
+task_list_bp = Blueprint("task_list", __name__, url_prefix="/tasks")
 
-task_list_bp = Blueprint("task_list", __name__)
+# ── helpers ─────────────────────────────────────────────────────────────
+_DB_TO_JSON = {
+    ParticipationStatusEnum.ASSIGNED:   "assigned",
+    ParticipationStatusEnum.REGISTERED: "registered",
+    ParticipationStatusEnum.ATTENDED:   "completed",
+    ParticipationStatusEnum.CANCELLED:  "cancelled",
+    ParticipationStatusEnum.NO_SHOW:    "no_show",
+}
+_JSON_TO_DB = {v: k for k, v in _DB_TO_JSON.items()}
 
-# ――― Dummy in‐memory tasks store with description + assignee ―――
-_tasks = [
-    {
-      "id": "t1",
-      "title": "Community Clean-Up",
-      "description": "Pick up litter and debris in the community park.",
-      "date": "2025-07-10",
-      "status": "assigned",         # admin has assigned this
-      "assignee": "volunteer1@example.com"
-    },
-    {
-      "id": "t2",
-      "title": "Food Drive",
-      "description": "Sort and package the incoming food donations.",
-      "date": "2025-07-05",
-      "status": "registered",       # volunteer already registered
-      "assignee": "volunteer2@example.com"
-    },
-    {
-      "id": "t3",
-      "title": "Tree Planting Review",
-      "description": "Inspect and report on last month’s plantings.",
-      "date": "2025-06-20",
-      "status": "completed",        # past event
-      "assignee": "volunteer1@example.com"
-    },
-]
+def _tasks_from_db(volunteer_id: int) -> list[dict]:
+    rows = (
+        db.session.query(
+            VolunteerHistory.vol_history_id,
+            VolunteerHistory.participation_status,
+            Events.name,
+            Events.description,
+            Events.date,
+            UserCredentials.email,
+        )
+        .join(Events, Events.event_id == VolunteerHistory.event_id)
+        .join(UserCredentials, UserCredentials.user_id == VolunteerHistory.user_id)
+        .filter(VolunteerHistory.user_id == volunteer_id)
+        .all()
+    )
 
-@task_list_bp.route("", methods=["GET"])
+    return [
+        {
+            "id":        str(tid),
+            "title":     title,
+            "description": desc,
+            "date":      dt.date().isoformat(),
+            "status":    _DB_TO_JSON.get(stat, "assigned"),
+            "assignee":  email,
+        }
+        for tid, stat, title, desc, dt, email in rows
+    ]
+
+# ── routes ──────────────────────────────────────────────────────────────
+@task_list_bp.get("")
 def get_tasks():
     """
-    GET /tasks
-    Returns the list of tasks with description & assignee.
+    GET /tasks?volunteerId=<int>
+    Returns only tasks for that volunteer.
     """
-    return jsonify(_tasks)
+    uid = request.args.get("volunteerId", type=int)
+    if uid is None:
+        return jsonify({"error": "volunteerId required"}), 400
+
+    tasks = _tasks_from_db(uid)
+    tasks.sort(key=lambda t: t["date"], reverse=True)
+    return jsonify(tasks)
 
 
-@task_list_bp.route("/status", methods=["POST"])
+@task_list_bp.post("/status")
 def update_task_status():
     """
     POST /tasks/status
-    Body JSON: { taskId: string, status: string }
+    Body JSON: { taskId: string, status: string, volunteerId: int }
+    Only the owner of the task may change its status.
     """
-    data = request.get_json() or {}
-    task_id = data.get("taskId")
+    data       = request.get_json() or {}
+    task_id    = data.get("taskId")
     new_status = data.get("status")
-    if not task_id or not new_status:
-        return jsonify({"error": "taskId and status required"}), 400
+    uid_raw    = data.get("volunteerId")
+    uid        = int(uid_raw) if uid_raw is not None else None
 
-    for task in _tasks:
-        if task["id"] == task_id:
-            task["status"] = new_status
-            return jsonify({"taskId": task_id, "status": new_status}), 200
+    if not all([task_id, new_status, uid]):
+        return jsonify({"error": "taskId, status, volunteerId required"}), 400
+    if new_status not in _JSON_TO_DB:
+        return jsonify({"error": "invalid status"}), 400
+    if not task_id.isdigit():
+        return jsonify({"error": "Task not found"}), 404
 
-    return jsonify({"error": "Task not found"}), 404
+    vh_id = int(task_id)
+    stmt  = (
+        update(VolunteerHistory)
+        .where(
+            VolunteerHistory.vol_history_id == vh_id,
+            VolunteerHistory.user_id == uid,               # ownership check
+        )
+        .values(participation_status=_JSON_TO_DB[new_status])
+    )
+    result = db.session.execute(stmt)
+    if result.rowcount:
+        db.session.commit()
+        return jsonify({"taskId": task_id, "status": new_status}), 200
+    return jsonify({"error": "Task not found or forbidden"}), 404
