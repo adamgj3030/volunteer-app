@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react"
-import { useForm } from "react-hook-form"
+/*  frontend/src/pages/EventForm.tsx  */
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import {
   listUpcoming,
   listPast,
@@ -7,31 +8,33 @@ import {
   updateEvent,
   type Event as APIEvent,
   type EventPayload,
-} from "@/lib/events"
+} from "@/lib/events";
+import { fetchSkills } from "@/lib/api";
+import type { SkillOption } from "@/types/profile";
+
 import {
   Form, FormField, FormItem, FormLabel, FormControl, FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
 
-// ─────────────────────────────────────────────────────────────────────────
-// local‑form typings
-// ─────────────────────────────────────────────────────────────────────────
+/* ───────────────────────── Types ───────────────────────── */
 type EventFormValues = {
-  name: string
-  description: string
-  address: string
-  city: string
-  state_id: string
-  zipcode: string
-  urgency: "low" | "medium" | "high"
-  date: Date | null            // react‑hook‑form keeps a Date obj
-}
+  name: string;
+  description: string;
+  address: string;
+  city: string;
+  state_id: string;
+  zipcode: string;
+  urgency: "low" | "medium" | "high";
+  date: Date | null;
+  skills: number[];      // ► store SKILL IDs, not names
+};
 
 const defaultValues: EventFormValues = {
   name: "",
@@ -42,80 +45,91 @@ const defaultValues: EventFormValues = {
   zipcode: "",
   urgency: "low",
   date: null,
-}
+  skills: [],
+};
 
-// quick‑n‑dirty local state buckets
-type Bucket = {
-  upcoming: APIEvent[]
-  past: APIEvent[]
-}
+/* local cache buckets */
+type APIEventWithSkills = APIEvent & { skills?: number[] };
+type Bucket = { upcoming: APIEventWithSkills[]; past: APIEventWithSkills[] };
 
-// ╭──────────────────────────────────────────────────────────────────────╮
-// │  COMPONENT                                                          │
-// ╰──────────────────────────────────────────────────────────────────────╯
+/* ───────────────────── Component ───────────────────── */
 export default function EventForm() {
-  const form = useForm<EventFormValues>({ defaultValues })
-  const { control, handleSubmit, reset, formState: { errors } } = form
+  const form = useForm<EventFormValues>({ defaultValues });
+  const { control, handleSubmit, reset, formState: { errors } } = form;
 
-  const [bucket, setBucket] = useState<Bucket>({ upcoming: [], past: [] })
-  const [editing, setEditing] = useState<null | APIEvent>(null)
+  const [bucket, setBucket]   = useState<Bucket>({ upcoming: [], past: [] });
+  const [editing, setEditing] = useState<APIEventWithSkills | null>(null);
+  const [skillOpts, setSkillOpts] = useState<SkillOption[]>([]);
+  const [ready, setReady]     = useState(false);
 
-  // ───────── initial load ─────────
+  /* preload events + skills */
   useEffect(() => {
-    Promise.all([listUpcoming(), listPast()]).then(([upcoming, past]) =>
-      setBucket({ upcoming, past }),
-    )
-  }, [])
+    (async () => {
+      const [upcoming, past, skills] = await Promise.all([
+        listUpcoming(),        // backend should include `skills` per event
+        listPast(),
+        fetchSkills(),
+      ]);
+      setBucket({ upcoming: upcoming as APIEventWithSkills[], past: past as APIEventWithSkills[] });
+      setSkillOpts(skills as SkillOption[]);
+      setReady(true);
+    })();
+  }, []);
 
-  // ───────── submit handler ─────────
+  /* helper: id → name */
+  const skillDict = useMemo(
+    () => Object.fromEntries(skillOpts.map(o => [o.id, o.name])),
+    [skillOpts]
+  );
+
+  /* submit handler */
   async function onSubmit(data: EventFormValues) {
-    const payload: EventPayload = {
+    const payload: EventPayload & { skills: number[] } = {
       ...data,
-      date: data.date!.toISOString(),       // ! – we validate required
-    }
+      date: data.date!.toISOString(),
+      skills: data.skills,
+    };
 
     if (editing) {
-      await updateEvent(editing.event_id, payload)
-      // optimistic update
-      setBucket((b) => ({
-        upcoming: b.upcoming.map((e) =>
+      await updateEvent(editing.event_id, payload as any);
+      setBucket(b => ({
+        upcoming: b.upcoming.map(e =>
           e.event_id === editing.event_id ? { ...e, ...payload } : e),
         past: b.past,
-      }))
+      }));
     } else {
-      const { event_id } = await createEvent(payload)
-      setBucket((b) => ({
+      const { event_id } = await createEvent(payload as any);
+      setBucket(b => ({
         upcoming: [...b.upcoming, { event_id, ...payload }],
         past: b.past,
-      }))
+      }));
     }
-
-    reset(defaultValues)
-    setEditing(null)
+    reset(defaultValues);
+    setEditing(null);
   }
 
-  // ───────── click upcoming → edit ─────────
-  function startEdit(ev: APIEvent) {
-    setEditing(ev)
+  /* click row → edit */
+  function startEdit(ev: APIEventWithSkills) {
+    setEditing(ev);
     reset({
       ...ev,
       date: new Date(ev.date),
-    })
+      skills: ev.skills ?? [],
+    });
   }
 
-  // ───────── render helpers ─────────
-  const label = "block mb-1 text-sm font-medium text-[var(--color-charcoal-300)]"
-  const input =
-    "w-full p-2 border border-[var(--color-ash_gray-400)] bg-white text-black rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50"
-  const errorBorder = "border-red-500 focus-visible:ring-red-200"
-  const selectTrigger = `${input} py-2`
-  const btn =
-    "px-6 py-3 bg-[var(--color-cambridge_blue-500)] hover:bg-[var(--color-cambridge_blue-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-400)] disabled:opacity-50 rounded-lg text-white mx-auto flex justify-center"
+  /* ui helpers */
+  const label         = "block mb-1 text-sm font-medium text-[var(--color-charcoal-300)]";
+  const input         = "w-full p-2 border border-[var(--color-ash_gray-400)] bg-white text-black rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50";
+  const errorBorder   = "border-red-500 focus-visible:ring-red-200";
+  const selectTrigger = `${input} py-2`;
+  const btn           = "px-6 py-3 bg-[var(--color-cambridge_blue-500)] hover:bg-[var(--color-cambridge_blue-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-400)] disabled:opacity-50 rounded-lg text-white mx-auto flex justify-center";
 
   return (
     <main className="min-h-screen bg-[var(--color-ash_gray-500)] p-4 flex justify-center">
       <div className="mt-16 max-w-2xl w-full bg-white p-6 rounded-lg shadow-md">
-        {/* ─────── form ─────── */}
+
+        {/* ───────────────────────── form ───────────────────────── */}
         <Form {...form}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
 
@@ -128,9 +142,7 @@ export default function EventForm() {
                 <FormItem>
                   <FormLabel className={label}>Event Name</FormLabel>
                   <FormControl>
-                    <Input {...field}
-                      className={`${input} ${errors.name ? errorBorder : ""}`}
-                      placeholder="Beach Cleanup" />
+                    <Input {...field} className={`${input} ${errors.name ? errorBorder : ""}`} placeholder="Beach Cleanup" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -146,17 +158,16 @@ export default function EventForm() {
                 <FormItem>
                   <FormLabel className={label}>Description</FormLabel>
                   <FormControl>
-                    <Textarea {...field}
-                      className={`${input} resize-none ${errors.description ? errorBorder : ""}`}
-                      placeholder="Explain what volunteers will do…" />
+                    <Textarea {...field} className={`${input} resize-none ${errors.description ? errorBorder : ""}`} placeholder="Explain what volunteers will do…" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* address + city */}
+            {/* address + city + state */}
             <div className="grid grid-cols-2 gap-4">
+              {/* address */}
               <FormField
                 control={control}
                 name="address"
@@ -165,15 +176,14 @@ export default function EventForm() {
                   <FormItem className="col-span-2">
                     <FormLabel className={label}>Street Address</FormLabel>
                     <FormControl>
-                      <Input {...field}
-                        className={`${input} ${errors.address ? errorBorder : ""}`}
-                        placeholder="123 Main St" />
+                      <Input {...field} className={`${input} ${errors.address ? errorBorder : ""}`} placeholder="123 Main St" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
+              {/* city */}
               <FormField
                 control={control}
                 name="city"
@@ -182,15 +192,14 @@ export default function EventForm() {
                   <FormItem>
                     <FormLabel className={label}>City</FormLabel>
                     <FormControl>
-                      <Input {...field}
-                        className={`${input} ${errors.city ? errorBorder : ""}`}
-                        placeholder="Houston" />
+                      <Input {...field} className={`${input} ${errors.city ? errorBorder : ""}`} placeholder="Houston" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
+              {/* state */}
               <FormField
                 control={control}
                 name="state_id"
@@ -205,7 +214,9 @@ export default function EventForm() {
                         </SelectTrigger>
                         <SelectContent>
                           {US_STATES.map((s) => (
-                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            <SelectItem key={s.value} value={s.value}>
+                              {s.label}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -220,14 +231,15 @@ export default function EventForm() {
             <FormField
               control={control}
               name="zipcode"
-              rules={{ required: "ZIP required", pattern: { value: /^\d{5}$/, message: "5 digits" } }}
+              rules={{
+                required: "ZIP required",
+                pattern: { value: /^\d{5,9}$/, message: "Zip code must be 5–9 digits long." },
+              }}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className={label}>ZIP</FormLabel>
+                  <FormLabel className={label}>Zip Code (5–9 digits)</FormLabel>
                   <FormControl>
-                    <Input {...field}
-                      className={`${input} ${errors.zipcode ? errorBorder : ""}`}
-                      placeholder="77005" />
+                    <Input {...field} className={`${input} ${errors.zipcode ? errorBorder : ""}`} placeholder="e.g. 770051234" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -259,6 +271,46 @@ export default function EventForm() {
               )}
             />
 
+            {/* skills */}
+            <FormField
+              control={control}
+              name="skills"
+              rules={{ validate: v => (v && v.length > 0) || "Pick at least one required skill" }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className={label}>Required skills</FormLabel>
+                  <FormControl>
+                    {ready ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {skillOpts.map((s) => {
+                          const checked = field.value?.includes(s.id) ?? false;
+                          return (
+                            <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-gray-300"
+                                checked={checked}
+                                onChange={(e) => {
+                                  const next = new Set(field.value ?? []);
+                                  if (e.target.checked) next.add(s.id);
+                                  else next.delete(s.id);
+                                  field.onChange(Array.from(next));
+                                }}
+                              />
+                              {s.name}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">Loading skills…</p>
+                    )}
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* date */}
             <FormField
               control={control}
@@ -280,88 +332,113 @@ export default function EventForm() {
             </Button>
 
             {editing && (
-              <Button type="button" variant="outline" className="w-full"
-                onClick={() => { reset(defaultValues); setEditing(null) }}>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => { reset(defaultValues); setEditing(null); }}
+              >
                 Cancel Edit
               </Button>
             )}
           </form>
         </Form>
 
-        {/* ─────── lists ─────── */}
+        {/* ───────────────────── lists ───────────────────── */}
         <section className="mt-10 space-y-6">
-          {/* upcoming */}
-          <div>
-            <h2 className="text-xl font-bold mb-2">Upcoming Events</h2>
-            {bucket.upcoming.length === 0
-              ? <p className="text-sm text-black/60">No upcoming events.</p>
-              : (
-                <ul className="space-y-2">
-                  {bucket.upcoming.map((e) => (
-                    <li key={e.event_id}
-                        className="cursor-pointer p-3 border rounded hover:bg-gray-100 transition"
-                        onClick={() => startEdit(e)}>
-                      <strong>{e.name}</strong><br/>
-                      <span className="text-sm">
-                        ({new Date(e.date).toLocaleString()}) &mdash;
-                        {` ${e.city}, ${e.state_id}`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-          </div>
-
-          {/* past */}
-          <div>
-            <h2 className="text-xl font-bold mb-2">Past Events</h2>
-            {bucket.past.length === 0
-              ? <p className="text-sm text-black/60">No past events.</p>
-              : (
-                <ul className="space-y-2 opacity-70">
-                  {bucket.past.map((e) => (
-                    <li key={e.event_id} className="p-3 border rounded">
-                      <strong>{e.name}</strong><br/>
-                      <span className="text-sm">
-                        ({new Date(e.date).toLocaleString()}) &mdash;
-                        {` ${e.city}, ${e.state_id}`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-          </div>
+          {(["upcoming", "past"] as const).map(kind => {
+            const list = bucket[kind];
+            return (
+              <div key={kind}>
+                <h2 className="text-xl font-bold mb-2">
+                  {kind === "upcoming" ? "Upcoming Events" : "Past Events"}
+                </h2>
+                {list.length === 0 ? (
+                  <p className="text-sm text-black/60">
+                    No {kind === "upcoming" ? "upcoming" : "past"} events.
+                  </p>
+                ) : (
+                  <ul className={kind === "past" ? "space-y-2 opacity-70" : "space-y-2"}>
+                    {list.map(e => (
+                      <li
+                        key={e.event_id}
+                        className={`p-3 border rounded ${kind === "upcoming" ? "cursor-pointer hover:bg-gray-100 transition" : ""}`}
+                        onClick={kind === "upcoming" ? () => startEdit(e) : undefined}
+                      >
+                        <strong>{e.name}</strong>
+                        <br />
+                        <span className="text-sm">
+                          ({new Date(e.date).toLocaleString()}) &mdash; {`${e.city}, ${e.state_id}`}
+                        </span>
+                        <div className="text-sm mt-1">
+                          <span className="font-medium">Skills:</span>{" "}
+                          {e.skills && e.skills.length > 0
+                            ? e.skills.map(id => skillDict[id]).join(", ")
+                            : "—"}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
         </section>
       </div>
     </main>
-  )
+  );
 }
 
-// hard‑coded list of states – keep near bottom so it’s easy to edit later
+/* hard‑coded list of US states */
 const US_STATES = [
-  { value: "AL", label: "Alabama" }, { value: "AK", label: "Alaska" },
-  { value: "AZ", label: "Arizona" }, { value: "AR", label: "Arkansas" },
-  { value: "CA", label: "California" }, { value: "CO", label: "Colorado" },
-  { value: "CT", label: "Connecticut" }, { value: "DE", label: "Delaware" },
-  { value: "FL", label: "Florida" }, { value: "GA", label: "Georgia" },
-  { value: "HI", label: "Hawaii" }, { value: "ID", label: "Idaho" },
-  { value: "IL", label: "Illinois" }, { value: "IN", label: "Indiana" },
-  { value: "IA", label: "Iowa" }, { value: "KS", label: "Kansas" },
-  { value: "KY", label: "Kentucky" }, { value: "LA", label: "Louisiana" },
-  { value: "ME", label: "Maine" }, { value: "MD", label: "Maryland" },
-  { value: "MA", label: "Massachusetts" }, { value: "MI", label: "Michigan" },
-  { value: "MN", label: "Minnesota" }, { value: "MS", label: "Mississippi" },
-  { value: "MO", label: "Missouri" }, { value: "MT", label: "Montana" },
-  { value: "NE", label: "Nebraska" }, { value: "NV", label: "Nevada" },
-  { value: "NH", label: "New Hampshire" }, { value: "NJ", label: "New Jersey" },
-  { value: "NM", label: "New Mexico" }, { value: "NY", label: "New York" },
-  { value: "NC", label: "North Carolina" }, { value: "ND", label: "North Dakota" },
-  { value: "OH", label: "Ohio" }, { value: "OK", label: "Oklahoma" },
-  { value: "OR", label: "Oregon" }, { value: "PA", label: "Pennsylvania" },
-  { value: "RI", label: "Rhode Island" }, { value: "SC", label: "South Carolina" },
-  { value: "SD", label: "South Dakota" }, { value: "TN", label: "Tennessee" },
-  { value: "TX", label: "Texas" }, { value: "UT", label: "Utah" },
-  { value: "VT", label: "Vermont" }, { value: "VA", label: "Virginia" },
-  { value: "WA", label: "Washington" }, { value: "WV", label: "West Virginia" },
-  { value: "WI", label: "Wisconsin" }, { value: "WY", label: "Wyoming" },
-]
+  { value: "AL", label: "Alabama" },
+  { value: "AK", label: "Alaska" },
+  { value: "AZ", label: "Arizona" },
+  { value: "AR", label: "Arkansas" },
+  { value: "CA", label: "California" },
+  { value: "CO", label: "Colorado" },
+  { value: "CT", label: "Connecticut" },
+  { value: "DE", label: "Delaware" },
+  { value: "FL", label: "Florida" },
+  { value: "GA", label: "Georgia" },
+  { value: "HI", label: "Hawaii" },
+  { value: "ID", label: "Idaho" },
+  { value: "IL", label: "Illinois" },
+  { value: "IN", label: "Indiana" },
+  { value: "IA", label: "Iowa" },
+  { value: "KS", label: "Kansas" },
+  { value: "KY", label: "Kentucky" },
+  { value: "LA", label: "Louisiana" },
+  { value: "ME", label: "Maine" },
+  { value: "MD", label: "Maryland" },
+  { value: "MA", label: "Massachusetts" },
+  { value: "MI", label: "Michigan" },
+  { value: "MN", label: "Minnesota" },
+  { value: "MS", label: "Mississippi" },
+  { value: "MO", label: "Missouri" },
+  { value: "MT", label: "Montana" },
+  { value: "NE", label: "Nebraska" },
+  { value: "NV", label: "Nevada" },
+  { value: "NH", label: "New Hampshire" },
+  { value: "NJ", label: "New Jersey" },
+  { value: "NM", label: "New Mexico" },
+  { value: "NY", label: "New York" },
+  { value: "NC", label: "North Carolina" },
+  { value: "ND", label: "North Dakota" },
+  { value: "OH", label: "Ohio" },
+  { value: "OK", label: "Oklahoma" },
+  { value: "OR", label: "Oregon" },
+  { value: "PA", label: "Pennsylvania" },
+  { value: "RI", label: "Rhode Island" },
+  { value: "SC", label: "South Carolina" },
+  { value: "SD", label: "South Dakota" },
+  { value: "TN", label: "Tennessee" },
+  { value: "TX", label: "Texas" },
+  { value: "UT", label: "Utah" },
+  { value: "VT", label: "Vermont" },
+  { value: "VA", label: "Virginia" },
+  { value: "WA", label: "Washington" },
+  { value: "WV", label: "West Virginia" },
+  { value: "WI", label: "Wisconsin" },
+  { value: "WY", label: "Wyoming" },
+];
