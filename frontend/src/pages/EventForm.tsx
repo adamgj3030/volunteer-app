@@ -1,6 +1,5 @@
 /*  frontend/src/pages/EventForm.tsx  */
-/*  frontend/src/pages/EventForm.tsx  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   listUpcoming,
@@ -10,8 +9,9 @@ import {
   type Event as APIEvent,
   type EventPayload,
 } from "@/lib/events";
-import { fetchSkills } from "@/lib/api";          // ✅ use the helper you already have
+import { fetchSkills } from "@/lib/api";
 import type { SkillOption } from "@/types/profile";
+
 import {
   Form, FormField, FormItem, FormLabel, FormControl, FormMessage,
 } from "@/components/ui/form";
@@ -33,7 +33,7 @@ type EventFormValues = {
   zipcode: string;
   urgency: "low" | "medium" | "high";
   date: Date | null;
-  skills: string[];               // list of skill names
+  skills: number[];      // ► store SKILL IDs, not names
 };
 
 const defaultValues: EventFormValues = {
@@ -48,18 +48,9 @@ const defaultValues: EventFormValues = {
   skills: [],
 };
 
-/* fallback skills if /skills/ call fails */
-const FALLBACK_SKILLS = [
-  "Leadership",
-  "Communication",
-  "Organization",
-  "Technical",
-  "Fundraising",
-  "Design",
-];
-
 /* local cache buckets */
-type Bucket = { upcoming: APIEvent[]; past: APIEvent[] };
+type APIEventWithSkills = APIEvent & { skills?: number[] };
+type Bucket = { upcoming: APIEventWithSkills[]; past: APIEventWithSkills[] };
 
 /* ───────────────────── Component ───────────────────── */
 export default function EventForm() {
@@ -67,31 +58,33 @@ export default function EventForm() {
   const { control, handleSubmit, reset, formState: { errors } } = form;
 
   const [bucket, setBucket]   = useState<Bucket>({ upcoming: [], past: [] });
-  const [editing, setEditing] = useState<null | APIEvent>(null);
-  const [skills, setSkills]   = useState<string[]>([]);
+  const [editing, setEditing] = useState<APIEventWithSkills | null>(null);
+  const [skillOpts, setSkillOpts] = useState<SkillOption[]>([]);
   const [ready, setReady]     = useState(false);
 
-  /* initial load: events + skills list */
+  /* preload events + skills */
   useEffect(() => {
     (async () => {
-      /* events */
-      const [upcoming, past] = await Promise.all([listUpcoming(), listPast()]);
-      setBucket({ upcoming, past });
-
-      /* skills */
-      try {
-        const res = await fetchSkills();
-        setSkills((res as SkillOption[]).map((s) => s.name));
-      } catch {
-        setSkills(FALLBACK_SKILLS);
-      }
+      const [upcoming, past, skills] = await Promise.all([
+        listUpcoming(),        // backend should include `skills` per event
+        listPast(),
+        fetchSkills(),
+      ]);
+      setBucket({ upcoming: upcoming as APIEventWithSkills[], past: past as APIEventWithSkills[] });
+      setSkillOpts(skills as SkillOption[]);
       setReady(true);
     })();
   }, []);
 
-  /* submit */
+  /* helper: id → name */
+  const skillDict = useMemo(
+    () => Object.fromEntries(skillOpts.map(o => [o.id, o.name])),
+    [skillOpts]
+  );
+
+  /* submit handler */
   async function onSubmit(data: EventFormValues) {
-    const payload: EventPayload & { skills: string[] } = {
+    const payload: EventPayload & { skills: number[] } = {
       ...data,
       date: data.date!.toISOString(),
       skills: data.skills,
@@ -115,30 +108,31 @@ export default function EventForm() {
     setEditing(null);
   }
 
-  /* click row ➜ edit */
-  function startEdit(ev: APIEvent) {
-    const anyEv = ev as APIEvent & { skills?: string[] };
+  /* click row → edit */
+  function startEdit(ev: APIEventWithSkills) {
     setEditing(ev);
     reset({
       ...ev,
       date: new Date(ev.date),
-      skills: anyEv.skills ?? [],
+      skills: ev.skills ?? [],
     });
   }
 
   /* ui helpers */
-  const label        = "block mb-1 text-sm font-medium text-[var(--color-charcoal-300)]";
-  const input        = "w-full p-2 border border-[var(--color-ash_gray-400)] bg-white text-black rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50";
-  const errorBorder  = "border-red-500 focus-visible:ring-red-200";
-  const selectTrigger= `${input} py-2`;
-  const btn          = "px-6 py-3 bg-[var(--color-cambridge_blue-500)] hover:bg-[var(--color-cambridge_blue-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-400)] disabled:opacity-50 rounded-lg text-white mx-auto flex justify-center";
+  const label         = "block mb-1 text-sm font-medium text-[var(--color-charcoal-300)]";
+  const input         = "w-full p-2 border border-[var(--color-ash_gray-400)] bg-white text-black rounded-lg shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-500)]/50";
+  const errorBorder   = "border-red-500 focus-visible:ring-red-200";
+  const selectTrigger = `${input} py-2`;
+  const btn           = "px-6 py-3 bg-[var(--color-cambridge_blue-500)] hover:bg-[var(--color-cambridge_blue-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-cambridge_blue-400)] disabled:opacity-50 rounded-lg text-white mx-auto flex justify-center";
 
   return (
     <main className="min-h-screen bg-[var(--color-ash_gray-500)] p-4 flex justify-center">
       <div className="mt-16 max-w-2xl w-full bg-white p-6 rounded-lg shadow-md">
-        {/* form */}
+
+        {/* ───────────────────────── form ───────────────────────── */}
         <Form {...form}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
             {/* name */}
             <FormField
               control={control}
@@ -171,7 +165,7 @@ export default function EventForm() {
               )}
             />
 
-            {/* address + city */}
+            {/* address + city + state */}
             <div className="grid grid-cols-2 gap-4">
               {/* address */}
               <FormField
@@ -288,22 +282,22 @@ export default function EventForm() {
                   <FormControl>
                     {ready ? (
                       <div className="grid grid-cols-2 gap-2">
-                        {skills.map((s) => {
-                          const checked = field.value?.includes(s) ?? false;
+                        {skillOpts.map((s) => {
+                          const checked = field.value?.includes(s.id) ?? false;
                           return (
-                            <label key={s} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                            <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer select-none">
                               <input
                                 type="checkbox"
                                 className="h-4 w-4 rounded border-gray-300"
                                 checked={checked}
                                 onChange={(e) => {
                                   const next = new Set(field.value ?? []);
-                                  if (e.target.checked) next.add(s);
-                                  else next.delete(s);
+                                  if (e.target.checked) next.add(s.id);
+                                  else next.delete(s.id);
                                   field.onChange(Array.from(next));
                                 }}
                               />
-                              {s}
+                              {s.name}
                             </label>
                           );
                         })}
@@ -350,64 +344,52 @@ export default function EventForm() {
           </form>
         </Form>
 
-        {/* lists */}
+        {/* ───────────────────── lists ───────────────────── */}
         <section className="mt-10 space-y-6">
-          {/* upcoming */}
-          <div>
-            <h2 className="text-xl font-bold mb-2">Upcoming Events</h2>
-            {bucket.upcoming.length === 0 ? (
-              <p className="text-sm text-black/60">No upcoming events.</p>
-            ) : (
-              <ul className="space-y-2">
-                {bucket.upcoming.map((e) => {
-                  const anyE = e as APIEvent & { skills?: string[] };
-                  return (
-                    <li key={e.event_id} className="cursor-pointer p-3 border rounded hover:bg-gray-100 transition" onClick={() => startEdit(e)}>
-                      <strong>{e.name}</strong>
-                      <br />
-                      <span className="text-sm">({new Date(e.date).toLocaleString()}) &mdash; {`${e.city}, ${e.state_id}`}</span>
-                      <div className="text-sm mt-1">
-                        <span className="font-medium">Skills:</span>{" "}
-                        {anyE.skills && anyE.skills.length > 0 ? anyE.skills.join(", ") : "—"}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          {/* past */}
-          <div>
-            <h2 className="text-xl font-bold mb-2">Past Events</h2>
-            {bucket.past.length === 0 ? (
-              <p className="text-sm text-black/60">No past events.</p>
-            ) : (
-              <ul className="space-y-2 opacity-70">
-                {bucket.past.map((e) => {
-                  const anyE = e as APIEvent & { skills?: string[] };
-                  return (
-                    <li key={e.event_id} className="p-3 border rounded">
-                      <strong>{e.name}</strong>
-                      <br />
-                      <span className="text-sm">({new Date(e.date).toLocaleString()}) &mdash; {`${e.city}, ${e.state_id}`}</span>
-                      <div className="text-sm mt-1">
-                        <span className="font-medium">Skills:</span>{" "}
-                        {anyE.skills && anyE.skills.length > 0 ? anyE.skills.join(", ") : "—"}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+          {(["upcoming", "past"] as const).map(kind => {
+            const list = bucket[kind];
+            return (
+              <div key={kind}>
+                <h2 className="text-xl font-bold mb-2">
+                  {kind === "upcoming" ? "Upcoming Events" : "Past Events"}
+                </h2>
+                {list.length === 0 ? (
+                  <p className="text-sm text-black/60">
+                    No {kind === "upcoming" ? "upcoming" : "past"} events.
+                  </p>
+                ) : (
+                  <ul className={kind === "past" ? "space-y-2 opacity-70" : "space-y-2"}>
+                    {list.map(e => (
+                      <li
+                        key={e.event_id}
+                        className={`p-3 border rounded ${kind === "upcoming" ? "cursor-pointer hover:bg-gray-100 transition" : ""}`}
+                        onClick={kind === "upcoming" ? () => startEdit(e) : undefined}
+                      >
+                        <strong>{e.name}</strong>
+                        <br />
+                        <span className="text-sm">
+                          ({new Date(e.date).toLocaleString()}) &mdash; {`${e.city}, ${e.state_id}`}
+                        </span>
+                        <div className="text-sm mt-1">
+                          <span className="font-medium">Skills:</span>{" "}
+                          {e.skills && e.skills.length > 0
+                            ? e.skills.map(id => skillDict[id]).join(", ")
+                            : "—"}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
         </section>
       </div>
     </main>
   );
 }
 
-// hard‑coded list of states – keep near bottom so it’s easy to edit later
+/* hard‑coded list of US states */
 const US_STATES = [
   { value: "AL", label: "Alabama" },
   { value: "AK", label: "Alaska" },
