@@ -1,14 +1,23 @@
+// src/pages/VolunteerHistory.tsx
 import { fetchVolunteerHistory } from "@/lib/api";
 import { useState, useMemo, useEffect } from "react";
 import {
-  Table, TableBody, TableCaption, TableCell,
-  TableHead, TableHeader, TableRow
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Select, SelectContent, SelectItem,
-  SelectTrigger, SelectValue
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
@@ -17,12 +26,15 @@ import type {
   ParticipationStatus,
   Urgency,
   SortableKeys,
-  Volunteer
+  Volunteer,
 } from "@/types/type";
 
 export default function VolunteerHistory() {
-  const [searchTerm,    setSearchTerm]    = useState("");
-  const [statusFilter,  setStatusFilter]  = useState<ParticipationStatus | "all">("all");
+  /* ---------------- state ---------------- */
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    ParticipationStatus | "all"
+  >("all");
   const [urgencyFilter, setUrgencyFilter] = useState<Urgency | "all">("all");
 
   const [sortConfig, setSortConfig] = useState<{
@@ -64,15 +76,15 @@ export default function VolunteerHistory() {
   const flattened = useMemo<FlattenedEvent[]>(() => {
     return volunteerData.flatMap((vol) =>
       vol.events.map((evt) => ({
-        email:          vol.email,
-        name:           vol.name,
-        eventName:      evt.eventName,
-        description:    evt.description,
-        location:       evt.location,
+        email: vol.email,
+        name: vol.name,
+        eventName: evt.eventName,
+        description: evt.description,
+        location: evt.location,
         requiredSkills: evt.requiredSkills,
-        urgency:        evt.urgency,
-        eventDate:      evt.eventDate,
-        status:         evt.status,
+        urgency: evt.urgency,
+        eventDate: evt.eventDate,
+        status: evt.status,
       }))
     );
   }, [volunteerData]);
@@ -105,6 +117,7 @@ export default function VolunteerHistory() {
     return data;
   }, [flattened, searchTerm, statusFilter, urgencyFilter, sortConfig]);
 
+  /* ---------- handlers ---------- */
   const requestSort = (key: SortableKeys) => {
     setSortConfig((current) => {
       const direction =
@@ -124,7 +137,7 @@ export default function VolunteerHistory() {
     );
   };
 
-  /* ---------- UI ---------- */
+  /* ---------------- UI ---------------- */
   return (
     <div className="bg-[var(--color-ash_gray-500)] min-h-screen py-10">
       <div className="container max-w-screen-3xl mx-auto bg-[var(--color-ash_gray-900)] p-10">
@@ -177,7 +190,9 @@ export default function VolunteerHistory() {
         {/* table */}
         <div className="rounded-md border border-[#cad2c5]">
           <Table>
-            <TableCaption>A list of volunteer participation history.</TableCaption>
+            <TableCaption>
+              A list of volunteer participation history.
+            </TableCaption>
             <TableHeader>
               <TableRow className="border-b border-[#cad2c5]">
                 {(
@@ -208,20 +223,20 @@ export default function VolunteerHistory() {
             </TableHeader>
 
             <TableBody>
-              {filteredAndSorted.map((item) => (
+              {filteredAndSorted.map((item, idx) => (
                 <TableRow
-                  key={`${item.email}-${item.eventName}-${item.eventDate}`}
+                  key={idx} /* <-- unique key prevents duplication */
                   className="border-b hover:bg-[#f4f6f3]"
                 >
-                  {/* 1  Volunteer Name */}
+                  {/* 1 Volunteer Name */}
                   <TableCell className="font-medium">{item.name}</TableCell>
-                  {/* 2  Email */}
+                  {/* 2 Email */}
                   <TableCell>{item.email}</TableCell>
-                  {/* 3  Event Name */}
+                  {/* 3 Event Name */}
                   <TableCell className="font-medium text-[#354f52]">
                     {item.eventName}
                   </TableCell>
-                  {/* 4  Urgency */}
+                  {/* 4 Urgency */}
                   <TableCell>
                     <Badge
                       variant={
@@ -235,9 +250,9 @@ export default function VolunteerHistory() {
                       {item.urgency}
                     </Badge>
                   </TableCell>
-                  {/* 5  Event Date */}
+                  {/* 5 Event Date */}
                   <TableCell>{item.eventDate}</TableCell>
-                  {/* 6  Status */}
+                  {/* 6 Status */}
                   <TableCell>
                     <Badge
                       variant={item.status === "Cancelled" ? "outline" : "default"}
@@ -245,11 +260,11 @@ export default function VolunteerHistory() {
                       {item.status}
                     </Badge>
                   </TableCell>
-                  {/* 7  Description */}
+                  {/* 7 Description */}
                   <TableCell>{item.description}</TableCell>
-                  {/* 8  Location */}
+                  {/* 8 Location */}
                   <TableCell>{item.location}</TableCell>
-                  {/* 9  Required Skills */}
+                  {/* 9 Required Skills */}
                   <TableCell>{item.requiredSkills.join(", ")}</TableCell>
                 </TableRow>
               ))}
