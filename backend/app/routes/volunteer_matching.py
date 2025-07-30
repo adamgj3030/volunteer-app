@@ -1,15 +1,18 @@
-# app/routes/volunteer_matching.py
 from flask import Blueprint, jsonify, request
 from datetime import date
 
+from sqlalchemy import select
+from sqlalchemy import text as sql
+
 from app.imports import db
-from app.models.events          import Events
-from app.models.eventToSkill    import EventToSkill
-from app.models.skill           import Skill
-from app.models.userCredentials import UserCredentials
-from app.models.userProfiles    import UserProfiles
-from app.models.userToSkill     import UserToSkill
+from app.models.events           import Events
+from app.models.eventToSkill     import EventToSkill
+from app.models.skill            import Skill
+from app.models.userCredentials  import UserCredentials
+from app.models.userProfiles     import UserProfiles
+from app.models.userToSkill      import UserToSkill
 from app.models.userAvailability import UserAvailability
+from app.models.volunteerHistory import VolunteerHistory, ParticipationStatusEnum
 
 volunteer_matching_bp = Blueprint(
     "volunteer_matching",
@@ -20,11 +23,9 @@ volunteer_matching_bp = Blueprint(
 # ---------------------------------------------------------------------------
 # helpers → group flat SQL rows into JSON shapes
 # ---------------------------------------------------------------------------
+
 def _events_json() -> list[dict]:
-    """
-    Return every event with its required skill names, shaped like:
-      { id, name, requiredSkills, urgency, date }
-    """
+    """Return every event with its required skill names."""
     rows = (
         db.session.query(
             Events.event_id,
@@ -57,10 +58,7 @@ def _events_json() -> list[dict]:
 
 
 def _volunteers_json() -> list[dict]:
-    """
-    Return every volunteer with skills & availability:
-      { id, fullName, skills, availability }
-    """
+    """Return every volunteer with skills & availability."""
     rows = (
         db.session.query(
             UserCredentials.user_id,
@@ -90,16 +88,13 @@ def _volunteers_json() -> list[dict]:
 
     return list(vols.values())
 
-
-# keep simple in-memory list for saved matches
-_SAVED_MATCHES: list[dict] = []
-
 # ---------------------------------------------------------------------------
 # routes
 # ---------------------------------------------------------------------------
+
 @volunteer_matching_bp.get("/events")
 def list_matching_events():
-    """GET /volunteer/matching/events  → list all events"""
+    """GET /volunteer/matching/events"""
     return jsonify(_events_json())
 
 
@@ -114,18 +109,16 @@ def get_volunteer_matches():
     except ValueError:
         return jsonify({"error": "eventId must be int"}), 400
 
-    # fetch event (and its required skills) once
     events = {ev["id"]: ev for ev in _events_json()}
-    event = events.get(event_id)
+    event  = events.get(event_id)
     if not event:
-        return jsonify([])  # unknown event id
+        return jsonify([])
 
     vols = _volunteers_json()
 
-    def score(vol: dict) -> tuple[int, int]:
-        """(available_today, skill_match_count)"""
-        available = 1 if event["date"] in vol["availability"] else 0
-        skill_ct  = sum(1 for s in event["requiredSkills"] if s in vol["skills"])
+    def score(vol):
+        available  = 1 if event["date"] in vol["availability"] else 0
+        skill_ct   = sum(1 for s in event["requiredSkills"] if s in vol["skills"])
         return (available, skill_ct)
 
     ranked = sorted(vols, key=score, reverse=True)
@@ -135,53 +128,56 @@ def get_volunteer_matches():
 @volunteer_matching_bp.post("")
 def save_volunteer_match():
     """
-    POST /volunteer/matching   Body: { "eventId": <int>, "volunteerId": <int> }
-    Stores match in memory (demo); in production you’d insert a row.
+    POST /volunteer/matching
+    Body: { "eventId": int, "volunteerId": int }
+    → Inserts ASSIGNED row into volunteer_history.
     """
     data = request.get_json(force=True) or {}
     try:
-        eid = int(data.get("eventId"))
-        vid = int(data.get("volunteerId"))
-    except (TypeError, ValueError):
+        eid = int(data["eventId"])
+        vid = int(data["volunteerId"])
+    except (KeyError, ValueError):
         return jsonify({"error": "eventId and volunteerId must be int"}), 400
 
-    _SAVED_MATCHES.append({"eventId": eid, "volunteerId": vid})
+    # Insert; ignore duplicates via PK/unique on (user_id, event_id)
+    db.session.execute(
+        sql(
+            "INSERT INTO volunteer_history "
+            "(user_id, event_id, participation_status) "
+            "VALUES (:uid, :eid, 'ASSIGNED') "
+            "ON CONFLICT DO NOTHING"
+        ),
+        {"uid": vid, "eid": eid},
+    )
+    db.session.commit()
+
     return jsonify({"saved": {"eventId": eid, "volunteerId": vid}}), 201
 
 
 @volunteer_matching_bp.get("/saved")
 def list_saved_matches():
-    """GET /volunteer/matching/saved  →  include names as well as IDs."""
-    if not _SAVED_MATCHES:
-        return jsonify([])
-
-    event_ids      = {m["eventId"]      for m in _SAVED_MATCHES}
-    volunteer_ids  = {m["volunteerId"]  for m in _SAVED_MATCHES}
-
-    # Pull names in one round-trip each
-    ev_rows = db.session.execute(
-        db.text("SELECT event_id, name FROM events WHERE event_id = ANY(:ids)")
-          .bindparams(ids=list(event_ids))
-    ).fetchall()
-    user_rows = db.session.execute(
-        db.text(
-            "SELECT uc.user_id, up.full_name "
-            "FROM user_credentials uc "
-            "JOIN user_profiles up ON up.user_id = uc.user_id "
-            "WHERE uc.user_id = ANY(:ids)"
-        ).bindparams(ids=list(volunteer_ids))
+    """
+    GET /volunteer/matching/saved
+    Returns rows currently in ASSIGNED state, joined with names.
+    """
+    rows = db.session.execute(
+        sql(
+            "SELECT vh.event_id, e.name, vh.user_id, up.full_name "
+            "FROM volunteer_history vh "
+            "JOIN events e         ON e.event_id  = vh.event_id "
+            "JOIN user_profiles up ON up.user_id  = vh.user_id "
+            "WHERE vh.participation_status = 'ASSIGNED'"
+        )
     ).fetchall()
 
-    event_map = {eid: n for eid, n in ev_rows}
-    user_map  = {uid: n for uid, n in user_rows}
-
-    enriched = [
-        {
-            "eventId":      m["eventId"],
-            "eventName":    event_map.get(m["eventId"], "??"),
-            "volunteerId":  m["volunteerId"],
-            "volunteerName":user_map.get(m["volunteerId"], "??"),
-        }
-        for m in _SAVED_MATCHES
-    ]
-    return jsonify(enriched)
+    return jsonify(
+        [
+            {
+                "eventId":        eid,
+                "eventName":      ename,
+                "volunteerId":    uid,
+                "volunteerName":  vname,
+            }
+            for eid, ename, uid, vname in rows
+        ]
+    )
