@@ -31,7 +31,7 @@ def get_volunteer_history():
             Events.date,
             Skill.skill_name,
         )
-        .join(UserProfiles, UserProfiles.user_id == UserCredentials.user_id)
+        .outerjoin(UserProfiles, UserProfiles.user_id == UserCredentials.user_id)
         .join(VolunteerHistory, VolunteerHistory.user_id == UserCredentials.user_id)
         .join(Events, Events.event_id == VolunteerHistory.event_id)
         .outerjoin(EventToSkill, EventToSkill.event_id == Events.event_id)

@@ -70,7 +70,7 @@ def _volunteers_json() -> list[dict]:
             UserCredentials.user_id, UserProfiles.full_name,
             Skill.skill_name,        UserAvailability.available_date,
         )
-        .join(UserProfiles,  UserProfiles.user_id  == UserCredentials.user_id)
+        .outerjoin(UserProfiles,  UserProfiles.user_id  == UserCredentials.user_id)
         .outerjoin(UserToSkill,      UserToSkill.user_id == UserCredentials.user_id)
         .outerjoin(Skill,            Skill.skill_id      == UserToSkill.skill_id)
         .outerjoin(UserAvailability, UserAvailability.user_id == UserCredentials.user_id)
