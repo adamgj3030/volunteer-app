@@ -87,6 +87,9 @@ const LoginPage: React.FC = () => {
       if (code === 'email_unconfirmed') {
         setAlertMsg(err?.message || 'Please confirm your email.');
         setAlertType('error');
+      } else if (code === 'admin_pending') {
+        setAlertMsg(err?.message || 'Your admin account is still pending approval.')
+        setAlertType('info')
       } else if (code === 'invalid_login') {
         setAlertMsg('Invalid email or password.');
         setAlertType('error');
@@ -136,7 +139,6 @@ const LoginPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between">
                 <label htmlFor="password" className={labelClass}>Password</label>
-                <a href="#" className="text-sm text-[var(--color-cambridge_blue-600)] hover:text-[var(--color-cambridge_blue-500)] transition-colors">Forgot password?</a>
               </div>
               <Input
                 id="password"

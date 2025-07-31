@@ -46,15 +46,6 @@ useEffect(() => {
       console.error("Error fetching pending users:", err);
     })
     .finally(() => setLoading(false));
-
-  //   const dummyUsers: User[] = [
-  //   { user_id: 1, full_name: "Alice Johnson", email: "alice@example.com", role: "PENDING_APPROVAL" },
-  //   { user_id: 2, full_name: "Bob Smith", email: "bob@example.com", role: "PENDING_APPROVAL" },
-  //   { user_id: 3, full_name: "Charlie Lee", email: "charlie@example.com", role: "PENDING_APPROVAL" },
-  // ];
-  // setPendingUsers(dummyUsers);
-  // setLoading(false);
-
 }, []);
 
 const acceptUser = async (user_id: number) => {

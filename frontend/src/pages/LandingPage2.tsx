@@ -1,11 +1,10 @@
-// frontend/src/pages/LandingPage.tsx
 import React, { useRef } from 'react';
 import bannerImage from '@/images/williamslake.jpg';
 import gunnisonImage from '@/images/gunnison.jpg';
-import chillingImage from '@/images/chillingman.png';
 import pikesImage from '@/images/pikespeak.jpg';
-import cabinImage from '@/images/cozycabin.png';
-import cowImage from '@/images/cozycow.png';
+import bearmanImage from '@/images/bearman.jpg';
+import windowImage from '@/images/window.jpg';
+import gardenImage from '@/images/garden.jpg';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +14,7 @@ import Slider, { Settings } from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import '@/styles/landingPage.css';
+import { Link } from "react-router-dom";
 const LandingPage: React.FC = () => {
   const sliderRef = useRef<Slider>(null);
 
@@ -61,7 +61,7 @@ const LandingPage: React.FC = () => {
             variant="secondary"
             className="bg-[var(--color-cambridge_blue-500)] hover:bg-[var(--color-cambridge_blue-600)] focus:ring-[var(--color-cambridge_blue-300)]"
           >
-            Get Started
+            <Link to="/register">Get Started</Link>
           </Button>
         </div>
       </header>
@@ -140,10 +140,10 @@ const LandingPage: React.FC = () => {
           <div className="relative">
             <Slider ref={sliderRef} {...showcaseSettings} className="space-x-4">
               {[
-                { src: cabinImage, alt: 'Volunteer building cabins' },
-                { src: cowImage, alt: 'Volunteer helping cows' },
+                { src: windowImage, alt: 'Volunteer hiking' },
+                { src: gardenImage, alt: 'Volunteer in the garden' },
                 { src: pikesImage, alt: 'Volunteers on Pikes Peak' },
-                { src: chillingImage, alt: 'Chilling volunteer' },
+                { src: bearmanImage, alt: 'Volunteer with a bear' },
                 { src: gunnisonImage, alt: 'Scenic view of Gunnison River' },
               ].map((img, i) => (
                 <div key={i} className="px-2">
@@ -173,7 +173,7 @@ const LandingPage: React.FC = () => {
           size="lg"
           className="bg-[var(--color-hookers_green-500)] hover:bg-[var(--color-hookers_green-600)] focus:ring-[var(--color-hookers_green-300)]"
         >
-          Join Now
+          <Link to="/register">Join Now</Link>
         </Button>
       </section>
 

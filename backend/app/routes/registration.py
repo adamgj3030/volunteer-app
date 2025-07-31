@@ -58,7 +58,7 @@ def register_user():
 
     # create signed email confirmation token
     token = generate_email_token(user.user_id, user.email, role_requested, user.confirmation_token_version)
-    confirm_link = url_for("users_credentials.confirm_email", token=token, _external=True)
+    confirm_link = url_for("register_user.confirm_email", token=token, _external=True)
 
     # send mail -----------------------------------------------------------
     send_email_confirmation(to_email=user.email, confirm_url=confirm_link)

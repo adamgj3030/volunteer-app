@@ -42,6 +42,16 @@ def login():
             403,
         )
 
+
+    if user.is_admin_pending:
+        return (
+            jsonify({
+                "error": "admin_pending",
+                "message": "Your admin account is still pending approval. Please wait for an administrator to approve your account.",
+            }),
+            403,
+        )
+
     # Good login -> issue token --------------------------------------
     access_token = create_access_token(identity=user.user_id)
 
@@ -52,8 +62,7 @@ def login():
         payload["redirect"] = "/volunteer"
     elif user.role is User_Roles.ADMIN:
         payload["redirect"] = "/admin"
-    else:  # ADMIN_PENDING
-        payload["redirect"] = "/admin/approval"  # change if you want different flow
+    else:
         payload["admin_pending"] = True
 
     return jsonify({
@@ -96,8 +105,12 @@ def resend_confirmation():
 @login_user_bp.route("/me", methods=["GET"])
 @jwt_required()
 def me():
-    uid = get_jwt_identity()
-    user = UserCredentials.query.get(uid)
+    identity = get_jwt_identity()  # string
+    try:
+        uid = int(identity)
+    except (TypeError, ValueError):
+        return jsonify({"error": "bad_identity"}), 400
+    user = db.session.get(UserCredentials, uid)
     if not user:
         return jsonify({"error": "not_found"}), 404
     return jsonify({"user": user_to_dict(user)}), 200
