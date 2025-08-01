@@ -16,6 +16,7 @@ import NotificationsTesting from './pages/NotificationsTesting.tsx';
 import NotificationListener from './components/NotificationListener.tsx';
 import EventMatching from './pages/EventMatching.tsx';
 import { ProtectedRoute }  from '@/components/ProtectedRoute';
+import AdminReports from './pages/AdminReports.tsx';
 
 function App() {
 
@@ -39,6 +40,7 @@ function App() {
           <Route path="/admin/event/creation" element={<ProtectedRoute allow={['ADMIN']} ><EventForm /></ProtectedRoute>} />
           <Route path="/admin/matching" element={<ProtectedRoute allow={['ADMIN']} ><VolunteerMatchingPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute allow={[]} ><NotificationsTesting /></ProtectedRoute>} />
+          <Route path="/admin/reports" element={<ProtectedRoute allow={['ADMIN']}><AdminReports /></ProtectedRoute>} />
         </Routes>
       </main>
     </Router>

@@ -32,8 +32,10 @@ function getNavForRole(role: string | null): NavItem[] {
       { name: 'Volunteer History', href: '/admin/history' },
       { name: 'Event Management', href: '/admin/event/creation' },
       { name: 'Volunteer Matching', href: '/admin/matching' },
+      { name: 'Reports', href: '/admin/reports' },       // ← NEW
     ];
   }
+  return []; // Fallback (should never hit)
 }
 
 export default function Navbar() {
