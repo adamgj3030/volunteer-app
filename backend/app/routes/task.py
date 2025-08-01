@@ -14,12 +14,17 @@ task_list_bp = Blueprint("task_list", __name__, url_prefix="/tasks")
 # ───────────────────────────────────────── helpers ──────────────────────────
 def _task_row(vh: VolunteerHistory, ev: Events, assignee_email: str) -> dict:
     """Return the JSON shape expected by the React TaskList."""
+    # map our internal ATTENDED enum back to "completed" for the client
+    status = vh.participation_status.name.lower()
+    if status == "attended":
+        status = "completed"
+
     return {
         "id":          str(vh.vol_history_id),
         "title":       ev.name,
         "description": ev.description,
         "date":        ev.date.date().isoformat(),
-        "status":      vh.participation_status.name.lower(),  # assigned / registered / completed
+        "status":      status,
         "assignee":    assignee_email,
     }
 

@@ -68,8 +68,8 @@ def _events_json() -> list[dict]:
             Events.date,
             Skill.skill_name,
         )
-        .join(EventToSkill, EventToSkill.event_id == Events.event_id)
-        .join(Skill, Skill.skill_id == EventToSkill.skill_code)
+        .outerjoin(EventToSkill, EventToSkill.event_id == Events.event_id)
+        .outerjoin(Skill, Skill.skill_id == EventToSkill.skill_code)
         .order_by(Events.event_id)
         .all()
     )
@@ -86,7 +86,9 @@ def _events_json() -> list[dict]:
                 "date": dt.date().isoformat(),
             },
         )
-        ev["requiredSkills"].append(skill)
+        if skill:  # skip None from the outer join
+            ev["requiredSkills"].append(skill)
+
     return list(events.values())
 
 

@@ -1,19 +1,29 @@
 from flask import Blueprint, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.imports import db
-from sqlalchemy import select
-
-from app.models.userCredentials import UserCredentials
+from app.models.userCredentials import UserCredentials, User_Roles
 from app.models.userProfiles    import UserProfiles
 from app.models.volunteerHistory import VolunteerHistory
 from app.models.events          import Events
 from app.models.eventToSkill    import EventToSkill
 from app.models.skill           import Skill
 
-volunteer_history_bp = Blueprint("volunteer_history", __name__)
+volunteer_history_bp = Blueprint(
+    "volunteer_history",
+    __name__,
+    url_prefix="/volunteer/history",
+)
 
 @volunteer_history_bp.get("")
 @volunteer_history_bp.get("/")
-def get_volunteer_history():
+@jwt_required()
+def list_volunteer_history():
+    # Only ADMIN can call
+    uid = int(get_jwt_identity())
+    user = db.session.query(UserCredentials).get(uid)
+    if not user or user.role != User_Roles.ADMIN:
+        return jsonify({"error": "Forbidden"}), 403
+
     rows = (
         db.session.query(
             UserCredentials.user_id,
@@ -40,7 +50,7 @@ def get_volunteer_history():
         .all()
     )
 
-    users = {}
+    users: dict[int, dict] = {}
     for r in rows:
         u = users.setdefault(
             r.user_id,
@@ -65,4 +75,5 @@ def get_volunteer_history():
     for u in users.values():
         u["events"] = list(u["events"].values())
         payload.append(u)
+
     return jsonify(payload)
