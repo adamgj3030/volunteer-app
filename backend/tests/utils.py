@@ -131,74 +131,29 @@ def seed_skills(app: Flask, names: Iterable[str] | None = None) -> Dict[str, int
 # ---------------------------------------------------------------------------
 # NEW seeding helpers required by the volunteer-matching / task tests
 # ---------------------------------------------------------------------------
-def seed_events(
-    app: Flask,
-    items: Iterable[tuple],
-) -> Dict[str, int]:
-    """
-    Insert events and return {event_name: event_id}.
-
-    Accepts:
-      • 5-tuple → (name, desc, state, urgency, iso_date)
-      • 6-tuple → (name, desc, state, urgency, iso_date, skill_ids)
-      • 7-tuple → (name, desc, addr, city, state, urgency, iso_date)
-    """
-    from datetime import datetime
-    from app.models.events import Events, UrgencyEnum
-    from app.models.eventToSkill import EventToSkill
-
-    out: Dict[str, int] = {}
-    with app.app_context():
-        for tup in items:
-            # tolerant unpack
-            if len(tup) == 5:                     # simple
-                name, desc, state_id, urg, iso = tup
-                addr, city, skills = "", "", []
-            elif len(tup) == 6:                   # +skills
-                name, desc, state_id, urg, iso, skills = tup
-                addr, city = "", ""
-            elif len(tup) == 7:                   # full addr
-                name, desc, addr, city, state_id, urg, iso = tup
-                skills = []
-            else:
-                raise ValueError(f"seed_events: bad tuple {tup}")
-
-            ev = Events(
-                name=name,
-                description=desc,
-                address=addr,
-                city=city,
-                state_id=state_id,
-                urgency=UrgencyEnum[urg],
-                date=datetime.fromisoformat(str(iso)),
-            )
-            db.session.add(ev)
-            db.session.flush()
-            out[name] = ev.event_id
-
-            for sid in skills:
-                db.session.add(EventToSkill(event_id=ev.event_id, skill_code=sid))
-
-        db.session.commit()
-    return out
-
-
 def seed_volunteer_history(app: Flask, rows: Iterable[tuple]) -> None:
     """
-    Accepts 3-tuple (uid, eid, status) **or**
-             4-tuple (uid, eid, status, hours_vol) – extra value ignored.
+    Accepts
+      • (uid, eid, status)
+      • (uid, eid, status, hours)  – extra value ignored
+
+    The test-suite may pass status "COMPLETED"; map it to the project’s
+    enum name "ATTENDED" so the insert succeeds.
     """
     from app.models.volunteerHistory import VolunteerHistory, ParticipationStatusEnum
+
+    STATUS_MAP = {"COMPLETED": "ATTENDED"}  # test → model translation
 
     with app.app_context():
         for row in rows:
             if len(row) == 3:
                 uid, eid, status = row
-            elif len(row) == 4:
-                uid, eid, status, _ = row  # hours not used by route tests
+            elif len(row) == 4:              # hours_volunteered ignored
+                uid, eid, status, _ = row
             else:
                 raise ValueError(f"seed_volunteer_history: bad tuple {row}")
 
+            status = STATUS_MAP.get(status, status)  # translate if needed
             db.session.add(
                 VolunteerHistory(
                     user_id=uid,
@@ -209,35 +164,38 @@ def seed_volunteer_history(app: Flask, rows: Iterable[tuple]) -> None:
         db.session.commit()
 
 
-# ───────────────────── helper: elevate a user to ADMIN ───────────────────────
-def promote_to_admin(app: Flask, user_id: int) -> None:
-    """Flip role → ADMIN directly in the DB (used by admin-side tests)."""
-    from app.models.userCredentials import User_Roles
-
-    with app.app_context():
-        user = db.session.get(UserCredentials, user_id)
-        if not user:
-            raise RuntimeError(f"promote_to_admin: user_id {user_id} not found")
-        user.role = User_Roles.ADMIN
-        db.session.commit()
-
-
-# ────────────────── patched auth factory (extra kw-args safe) ────────────────
-def create_confirmed_user_and_token(
+# ─────────────────── create_confirmed_user_and_token (updated) ────────────────
+def create_confirmed_user_and_token(             # noqa: C901  (keep helper in utils)
     client,
     app: Flask,
     *,
-    email="alice@example.org",
+    email: str | None = None,
     password="StrongPass!1",
     role="volunteer",
     skip_login=False,
-    full_name: str | None = None,   # ← NEW optional, silently ignored
-    **_,
+    full_name: str | None = None,                # may be supplied by newer tests
+    **__,
 ) -> str | None:
-    register(client, email=email, password=password, role=role)
+    """
+    • If *email* is omitted we derive one from full_name or generate a
+      unique placeholder so successive calls don’t clash.
+    • Ignores *full_name* – profile tests set names separately.
+    """
+    import uuid
+
+    if email is None:
+        base = (full_name or "user").lower().replace(" ", ".")
+        email = f"{base}-{uuid.uuid4().hex[:6]}@example.org"
+
+    def _safe_register():
+        r = register(client, email=email, password=password, role=role)
+        # If the user already exists the route returns 400; ignore & continue.
+        if r.status_code not in (200, 201, 400):
+            raise AssertionError(f"register failed: {r.get_data(as_text=True)}")
+
+    _safe_register()
     confirm_email_via_token(client, app, email=email, role_requested=role)
 
-    # optional: attach name here later if models require
     if skip_login:
         return None
     return login_get_token(client, email=email, password=password)
