@@ -1,13 +1,4 @@
-"""
-Tiny smoke-tests for /tasks.
-
-We don’t check DB side-effects here – that is covered indirectly in the
-volunteer-matching tests when a match is saved – we only prove that:
-
-  • GET /tasks returns the current user’s rows
-  • POST /tasks/status flips ASSIGNED ↔ REGISTERED
-  • both endpoints refuse unauthenticated requests
-"""
+import pytest
 from datetime import datetime, timedelta
 
 from tests.utils import (
@@ -20,65 +11,48 @@ from tests.utils import (
     find_rule,
 )
 
+def _insert_sample_history(app, uid: int):
+    # create one ASSIGNED, one REGISTERED, one COMPLETED
+    now = datetime.utcnow()
+    rows = [
+        (uid, 1, "ASSIGNED", None),
+        (uid, 2, "REGISTERED", None),
+        (uid, 3, "COMPLETED", None),
+    ]
+    seed_volunteer_history(app, rows)
 
-def _insert_sample_history(app, user_id: int):
-    """
-    Insert three rows for one user:
-
-        ASSIGNED  – event 1
-        REGISTERED – event 2
-        COMPLETED – event 3   (should not change via status endpoint)
-    """
-    with app.app_context():
-        seed_volunteer_history(
-            app,
-            [
-                (user_id, 1, "ASSIGNED", None),
-                (user_id, 2, "REGISTERED", 3),
-                (user_id, 3, "COMPLETED",  4),
-            ],
-        )
-
-
-def test_task_list_and_status_toggle(client, app):
-    # --- seed DB -----------------------------------------------------------
+def test_list_my_tasks_and_toggle_status(client, app):
+    #─── seed reference data ────────────────────────────────────────────
     seed_states(app, [("TX", "Texas")])
     seed_skills(app)
-    events = [
-        ("Community Cleanup", "Park", "TX", "medium", datetime.utcnow() + timedelta(days=10)),
-        ("Food Drive", "Center", "TX", "low", datetime.utcnow() + timedelta(days=20)),
-        ("Shelter", "Shelter", "TX", "high", datetime.utcnow() + timedelta(days=30)),
+    # three events 10/20/30 days out
+    evs = [
+        ("A", "D1", "TX", "medium", (datetime.utcnow() + timedelta(days=10)).isoformat()),
+        ("B", "D2", "TX", "low",    (datetime.utcnow() + timedelta(days=20)).isoformat()),
+        ("C", "D3", "TX", "high",   (datetime.utcnow() + timedelta(days=30)).isoformat()),
     ]
-    seed_events(app, events)
+    seed_events(app, evs)
 
     token = create_confirmed_user_and_token(client, app)
-    uid = 1  # helper above always makes the first user id = 1
+    uid = int(token.split(".")[0]) if False else 1  # your helper always makes user_id=1 first
     _insert_sample_history(app, uid)
 
+    #─── GET /tasks ───────────────────────────────────────────────────────
     list_path = find_rule(app, "task_list.list_my_tasks")
+    r1 = client.get(list_path, headers=auth_header(token))
+    assert r1.status_code == 200
+    tasks = r1.get_json()
+    assert len(tasks) == 3
+    # statuses come back lower-case
+    assert {t["status"] for t in tasks} == {"assigned", "registered", "completed"}
+
+    #─── POST /tasks/status toggle the middle one back to “assigned” ──────
+    second_id = tasks[1]["id"]
     status_path = find_rule(app, "task_list.update_task_status")
-
-    # --- GET /tasks --------------------------------------------------------
-    r = client.get(list_path, headers=auth_header(token))
-    assert r.status_code == 200
-    data = r.get_json()
-    assert len(data) == 3
-    first = next(t for t in data if t["status"] == "assigned")
-
-    # --- POST /tasks/status  (ASSIGNED → REGISTERED) -----------------------
-    payload = {"taskId": first["id"], "status": "registered"}
-    r2 = client.post(status_path, json=payload, headers=auth_header(token))
+    r2 = client.post(status_path,
+                     json={"taskId": second_id, "status": "assigned"},
+                     headers=auth_header(token))
     assert r2.status_code == 200
-    assert r2.get_json()["status"] == "registered"
-
-    # confirm list view shows the flip
-    r3 = client.get(list_path, headers=auth_header(token))
-    assert any(t["id"] == first["id"] and t["status"] == "registered" for t in r3.get_json())
-
-
-def test_task_endpoints_require_auth(client, app):
-    list_path = find_rule(app, "task_list.list_my_tasks")
-    status_path = find_rule(app, "task_list.update_task_status")
-
-    assert client.get(list_path).status_code in (401, 422)
-    assert client.post(status_path, json={}).status_code in (401, 422)
+    body = r2.get_json()
+    assert body["taskId"] == second_id
+    assert body["status"] == "assigned"

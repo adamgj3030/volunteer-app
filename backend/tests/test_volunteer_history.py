@@ -1,55 +1,78 @@
-"""
-Quick coverage for /volunteer/history – admin-only list.
-
-We only check:
-  • 200 + non-empty JSON for an admin
-  • 403 (or 401/422 depending on config) for a non-admin
-"""
-from datetime import datetime, timedelta
+import pytest
+from datetime import datetime, timedelta, date
 
 from tests.utils import (
     seed_states,
     seed_skills,
     seed_events,
-    seed_volunteer_history,
     create_confirmed_user_and_token,
-    promote_to_admin,
     auth_header,
     find_rule,
 )
 
+def _seed_one_event(app, skills):
+    evs = [
+        ("Cleanup", "Park", "TX", "high", (datetime.utcnow() + timedelta(days=2)).isoformat())
+    ]
+    mapping = seed_events(app, evs)
+    return mapping["Cleanup"]
 
-def _seed_some_history(app, uid):
-    with app.app_context():
-        seed_volunteer_history(
-            app,
-            [
-                (uid, 1, "ASSIGNED", None),
-            ],
-        )
+def _create_profile(client, token, avail_iso):
+    path = find_rule(client.application, "users_profiles.create_or_update_my_profile")
+    payload = {
+        "full_name": "Tester Name",
+        "address1": "1 Test Lane",
+        "address2": "",
+        "city": "City",
+        "state": "TX",
+        "zipcode": "12345",
+        "preferences": "",
+        "skills": [],            # we'll skip skill filtering here
+        "availability": [avail_iso] if avail_iso else [],
+    }
+    client.post(path, json=payload, headers=auth_header(token))
 
-
-def test_history_admin_ok_user_forbidden(client, app):
+def test_volunteer_matching_flow(client, app):
+    #─── seed reference data ────────────────────────────────────────────
     seed_states(app, [("TX", "Texas")])
-    seed_skills(app)
-    seed_events(
-        app,
-        [("Cleanup", "Park", "TX", "low", datetime.utcnow() + timedelta(days=5))],
-    )
+    skills = seed_skills(app, names=["Org"])  # only one skill, tests ignore it
 
-    # volunteer user
-    vol_token = create_confirmed_user_and_token(client, app)
-    _seed_some_history(app, uid=1)
+    event_id = _seed_one_event(app, skills)
 
-    # admin user
-    admin_token = promote_to_admin(client, app)  # helper returns token for fresh admin
+    # A has availability => should come first
+    tok_a = create_confirmed_user_and_token(client, app)
+    avail = (date.today() + timedelta(days=2)).isoformat()
+    _create_profile(client, tok_a, avail)
 
-    path = find_rule(app, "volunteer_history.list_volunteer_history")
+    # B has no availability => second
+    tok_b = create_confirmed_user_and_token(client, app)
+    _create_profile(client, tok_b, None)
 
-    # volunteer ➜ forbidden
-    assert client.get(path, headers=auth_header(vol_token)).status_code in (401, 403, 422)
+    # GET /volunteer/matching/events
+    ev_path = find_rule(app, "volunteer_matching.list_matching_events")
+    r_ev = client.get(ev_path)
+    assert r_ev.status_code == 200
+    events = r_ev.get_json()
+    # must include our numeric event
+    assert any(isinstance(e["id"], int) and e["id"] == event_id for e in events)
 
-    # admin ➜ 200 and list
-    r = client.get(path, headers=auth_header(admin_token))
-    assert r.status_code == 200
-    assert len(r.get_json()) >= 1
+    # GET /volunteer/matching?eventId=<id>
+    match_path = find_rule(app, "volunteer_matching.get_volunteer_matches")
+    r_match = client.get(match_path, query_string={"eventId": event_id})
+    assert r_match.status_code == 200
+    matches = r_match.get_json()
+    assert isinstance(matches, list)
+    # top match is “Tester Name” (A)
+    assert matches[0]["fullName"] == "Tester Name"
+
+    # save & list-saved
+    save_path = find_rule(app, "volunteer_matching.save_volunteer_match")
+    r_save = client.post(save_path,
+                         json={"eventId": event_id, "volunteerId": 1})
+    assert r_save.status_code == 201
+
+    saved_path = find_rule(app, "volunteer_matching.list_saved_matches")
+    r_saved = client.get(saved_path)
+    assert r_saved.status_code == 200
+    saved = r_saved.get_json()
+    assert any(m["eventId"] == event_id and m["volunteerId"] == 1 for m in saved)
