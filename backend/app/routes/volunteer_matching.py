@@ -22,36 +22,9 @@ volunteer_matching_bp = Blueprint(
 # -------------------------------------------------------------------------- #
 #  test-only fixtures (they are **ignored** in prod)                         #
 # -------------------------------------------------------------------------- #
-_LEGACY_EVENTS = [
-    {
-        "id": "e1",
-        "name": "Community Clean-Up",
-        "requiredSkills": ["Cleaning"],
-        "urgency": "High",
-        "date": "2025-07-10",
-    },
-    {
-        "id": "e2",
-        "name": "Food Drive",
-        "requiredSkills": ["Cooking"],
-        "urgency": "Medium",
-        "date": "2025-07-11",
-    },
-]
-_LEGACY_VOLUNTEERS = [
-    {
-        "id": "v1",
-        "fullName": "Alice Johnson",
-        "skills": ["Cleaning"],
-        "availability": ["2025-07-10"],
-    },
-    {
-        "id": "v2",
-        "fullName": "Bob Smith",
-        "skills": ["Cooking"],
-        "availability": ["2025-07-11"],
-    },
-]
+_LEGACY_EVENTS = []
+
+_LEGACY_VOLUNTEERS = []
 
 _SAVED_MATCHES: list[dict] = []          # shared for /saved
 

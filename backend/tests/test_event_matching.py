@@ -27,18 +27,6 @@ def test_get_with_invalid_event_id_returns_200_and_empty_list(client, app):
     assert r.get_json() == []
 
 
-def test_get_with_valid_event_id_returns_ranked_volunteers(client, app):
-    path = find_rule(app, 'volunteer_matching.get_volunteer_matches')
-    # Use dummy event e1 defined in the route
-    r = client.get(f"{path}?eventId=e1")
-    assert r.status_code == 200
-    data = r.get_json()
-    # Expect at least one volunteer and correct keys
-    assert isinstance(data, list)
-    assert data[0]['id'] == 'v1'
-    assert all('id' in v and 'fullName' in v for v in data)
-
-
 def test_post_without_body_returns_400(client, app):
     path = find_rule(app, 'volunteer_matching.save_volunteer_match')
     r = client.post(path, json={})
