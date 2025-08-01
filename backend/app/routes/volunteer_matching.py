@@ -93,17 +93,13 @@ def _events_json() -> list[dict]:
 def _volunteers_json() -> list[dict]:
     rows = (
         db.session.query(
-            UserCredentials.user_id,
-            UserProfiles.full_name,
-            Skill.skill_name,
-            UserAvailability.available_date,
+            UserCredentials.user_id, UserProfiles.full_name,
+            Skill.skill_name,        UserAvailability.available_date,
         )
-        .outerjoin(UserProfiles, UserProfiles.user_id == UserCredentials.user_id)
-        .outerjoin(UserToSkill, UserToSkill.user_id == UserCredentials.user_id)
-        .outerjoin(Skill, Skill.skill_id == UserToSkill.skill_id)
-        .outerjoin(
-            UserAvailability, UserAvailability.user_id == UserCredentials.user_id
-        )
+        .outerjoin(UserProfiles,  UserProfiles.user_id  == UserCredentials.user_id)
+        .outerjoin(UserToSkill,      UserToSkill.user_id == UserCredentials.user_id)
+        .outerjoin(Skill,            Skill.skill_id      == UserToSkill.skill_id)
+        .outerjoin(UserAvailability, UserAvailability.user_id == UserCredentials.user_id)
         .all()
     )
     vols: dict[int, dict] = {}
@@ -112,12 +108,17 @@ def _volunteers_json() -> list[dict]:
             uid,
             {"id": uid, "fullName": name, "skills": [], "availability": []},
         )
+        # if the DB gave us a real full_name, use it
+        if name:
+            v["fullName"] = name
+
         if skill and skill not in v["skills"]:
             v["skills"].append(skill)
         if avail:
             iso = avail.isoformat()
             if iso not in v["availability"]:
                 v["availability"].append(iso)
+
     return list(vols.values())
 
 

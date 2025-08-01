@@ -245,10 +245,36 @@ def seed_volunteer_history(
 
 
 # -------- NEW: promote_to_admin ---------------------------------------------
-def promote_to_admin(app: Flask, *, user_id: int):
-    """Directly set an existing user’s role to ADMIN (used by admin-route tests)."""
+def promote_to_admin(
+    client,
+    app: Flask,
+    *,
+    email: str | None = None,
+    password: str = "StrongPass!1",
+    full_name: str | None = None,
+) -> str:
+    """
+    Register, confirm, promote and log in a fresh ADMIN user.
+    Returns: a valid JWT for the new admin.
+    """
+    import uuid
+    if email is None:
+        base = (full_name or "admin").lower().replace(" ", ".")
+        email = f"{base}-{uuid.uuid4().hex[:6]}@example.org"
+
+    # register and confirm as a volunteer (tests expect volunteer-role registration)
+    register(client, email=email, password=password, role="volunteer")
+    confirm_email_via_token(client, app, email=email, role_requested="volunteer")
+
+    # promote in the DB
     with app.app_context():
-        user = db.session.get(UserCredentials, user_id)
-        assert user, f"user_id {user_id} not found"
+        from app.models.userCredentials import UserCredentials, User_Roles
+
+        user = db.session.query(UserCredentials).filter_by(email=email).first()
+        if not user:
+            raise RuntimeError("promote_to_admin: new user not found")
         user.role = User_Roles.ADMIN
         db.session.commit()
+
+    # now log in and return an admin token
+    return login_get_token(client, email=email, password=password)
