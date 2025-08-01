@@ -95,22 +95,26 @@ def _events_json() -> list[dict]:
 def _volunteers_json() -> list[dict]:
     rows = (
         db.session.query(
-            UserCredentials.user_id, UserProfiles.full_name,
-            Skill.skill_name,        UserAvailability.available_date,
+            UserCredentials.user_id,
+            UserProfiles.full_name,
+            Skill.skill_name,
+            UserAvailability.available_date,
         )
-        .outerjoin(UserProfiles,  UserProfiles.user_id  == UserCredentials.user_id)
-        .outerjoin(UserToSkill,      UserToSkill.user_id == UserCredentials.user_id)
-        .outerjoin(Skill,            Skill.skill_id      == UserToSkill.skill_id)
+        .outerjoin(UserProfiles, UserProfiles.user_id == UserCredentials.user_id)
+        .outerjoin(UserToSkill,  UserToSkill.user_id == UserCredentials.user_id)
+        .outerjoin(Skill,        Skill.skill_id == UserToSkill.skill_id)
         .outerjoin(UserAvailability, UserAvailability.user_id == UserCredentials.user_id)
         .all()
     )
+
     vols: dict[int, dict] = {}
     for uid, name, skill, avail in rows:
+        # start with empty string so we never return None
         v = vols.setdefault(
             uid,
-            {"id": uid, "fullName": name, "skills": [], "availability": []},
+            {"id": uid, "fullName": "" if name is None else name, "skills": [], "availability": []},
         )
-        # if the DB gave us a real full_name, use it
+        # overwrite if we have a real full_name
         if name:
             v["fullName"] = name
 

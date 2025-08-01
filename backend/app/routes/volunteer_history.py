@@ -17,10 +17,10 @@ volunteer_history_bp = Blueprint(
 @volunteer_history_bp.get("")
 @volunteer_history_bp.get("/")
 @jwt_required()
-def list_volunteer_history():
-    # Only ADMIN can call
+def get_volunteer_history():
+    # only admins may see everyone’s history
     uid = int(get_jwt_identity())
-    user = db.session.query(UserCredentials).get(uid)
+    user = db.session.get(UserCredentials, uid)
     if not user or user.role != User_Roles.ADMIN:
         return jsonify({"error": "Forbidden"}), 403
 
@@ -50,7 +50,7 @@ def list_volunteer_history():
         .all()
     )
 
-    users: dict[int, dict] = {}
+    users = {}
     for r in rows:
         u = users.setdefault(
             r.user_id,
@@ -75,5 +75,4 @@ def list_volunteer_history():
     for u in users.values():
         u["events"] = list(u["events"].values())
         payload.append(u)
-
     return jsonify(payload)
