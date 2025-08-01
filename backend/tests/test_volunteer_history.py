@@ -53,3 +53,20 @@ def test_history_admin_ok_user_forbidden(client, app):
     r = client.get(path, headers=auth_header(admin_token))
     assert r.status_code == 200
     assert len(r.get_json()) >= 1
+# ---------------------------------------------------------------------------
+# NEW helper: promote a confirmed user to ADMIN for admin-side route tests
+# ---------------------------------------------------------------------------
+def promote_to_admin(app: Flask, user_id: int) -> None:
+    """
+    Update the given user’s role to ADMIN directly in the DB.
+
+    Tests call this after the user has already been created / confirmed.
+    """
+    from app.models.userCredentials import User_Roles
+
+    with app.app_context():
+        user = db.session.get(UserCredentials, user_id)
+        if not user:
+            raise RuntimeError(f"promote_to_admin: user_id {user_id} not found")
+        user.role = User_Roles.ADMIN
+        db.session.commit()
