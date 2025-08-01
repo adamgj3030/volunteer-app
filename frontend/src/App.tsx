@@ -25,7 +25,7 @@ function App() {
       <Toaster richColors position="bottom-right"/>
       <NotificationListener />
       <main>
-        <Routes>
+        <Routes> 
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login/>}></Route>
           <Route path="/register" element={<RegisterPage/>}></Route>

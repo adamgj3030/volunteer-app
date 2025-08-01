@@ -103,7 +103,7 @@ export async function fetchSkills(): Promise<SkillOption[]> {
 // ---------------------------------------------------------------------------
 // Volunteer Profile --------------------------------------------------------
 // ---------------------------------------------------------------------------
-function authHeaders(token?: string) {
+function authHeaders(token?: string): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -173,11 +173,13 @@ export type Volunteer = {
   availability: string[];
 };
 
-export type TaskMatch = {
-  eventId: string;
-  volunteerId: string;
-};
-
+export interface TaskMatch {
+  eventId: number;
+  volunteerId: number;
+ //for the UI in saved matches
+  eventName?: string;
+  volunteerName?: string;
+}
 // fetch list of events
 export async function fetchMatchingEvents(): Promise<Event[]> {
   const res = await fetch(buildUrl("/volunteer/matching/events"));
@@ -216,7 +218,8 @@ export async function fetchSavedMatches(): Promise<TaskMatch[]> {
   return (await res.json()) as TaskMatch[];
 }
 
-//------- volunteer tasks (volunteer sided)
+// ───── volunteer tasks (volunteer-side) ────────────────────────────────────
+/* ------- volunteer tasks (volunteer-side) ------------------------- */
 export type Task = {
   id: string;
   title: string;
@@ -226,25 +229,27 @@ export type Task = {
   assignee: string;
 };
 
-// Fetch the volunteer’s tasks (assigned, registered, completed)
-export async function fetchVolunteerTasks(): Promise<Task[]> {
-  const res = await fetch(buildUrl("/tasks"));
+export async function fetchVolunteerTasks(token?: string): Promise<Task[]> {
+  const res = await fetch(buildUrl("/tasks"), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to load volunteer tasks");
   return (await res.json()) as Task[];
 }
 
-// Update a task’s status (register, cancel, etc.)
 export async function updateTaskStatus(
-  taskId: string,
-  status: Task["status"]
+  payload: { taskId: string; status: Task["status"] },
+  token?: string
 ): Promise<void> {
   const res = await fetch(buildUrl("/tasks/status"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ taskId, status }),
+    body: JSON.stringify(payload),
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to update task status");
 }
-//---------------------------------------------------------------------
