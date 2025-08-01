@@ -133,7 +133,7 @@ def test_save_match_persists_and_saved_endpoint_returns_names(client, app):
     event_date = datetime.utcnow() + timedelta(days=2)
     ev_id = _create_event(app, "TX", event_date, [skills["Leadership"]])
 
-    vol_id = _create_volunteer(app, "vol@example.org", "Val Volunteer",
+    vol_id = _create_volunteer(client, app, "vol@example.org", "Val Volunteer",
                                [skills["Leadership"]], [event_date.date().isoformat()])
 
     # POST save

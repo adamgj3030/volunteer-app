@@ -61,9 +61,14 @@ def test_volunteer_history_empty_returns_empty_list(client, app):
 def test_volunteer_history_returns_expected_structure(client, app):
     seed_states(app, [("TX", "Texas")])
     skills = seed_skills(app, ["Leadership", "Technical"])
-    token = create_confirmed_user_and_token(client, app)  # creates user_id 1
+    token = create_confirmed_user_and_token(client, app)  # creates the user
 
-    uid = 1
+    # lookup the real user_id instead of assuming 1
+    with app.app_context():
+        uid = db.session.query(UserCredentials)\
+                        .filter_by(email="alice@example.org")\
+                        .one().user_id
+
     _create_profile(app, uid)
 
     ev_id = _create_event(app, "TX", [skills["Leadership"], skills["Technical"]])
