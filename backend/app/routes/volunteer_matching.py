@@ -152,8 +152,8 @@ def save_volunteer_match():
         db.session.execute(
             sql(
                 "INSERT INTO volunteer_history "
-                "(user_id, event_id, participation_status) "
-                "VALUES (:uid, :eid, 'ASSIGNED') "
+                "(user_id, event_id, participation_status, hours_volunteered) "
+                "VALUES (:uid, :eid, 'ASSIGNED', 0) "
                 "ON CONFLICT DO NOTHING"
             ),
             {"uid": int(vid), "eid": int(eid)},

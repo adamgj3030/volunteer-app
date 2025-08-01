@@ -1,7 +1,7 @@
 /*
  *  frontend/src/pages/MatchingDashboard.tsx
  *  ────────────────────────────────────────
- *  Volunteer‑side event‑matching dashboard with filter panel.
+ *  Volunteer-side event-matching dashboard with filter panel.
  *  Skills are loaded at runtime from GET /skills/.
  */
 
@@ -14,7 +14,11 @@ import {
 import { Button } from '@/components/ui/button';
 
 import { useAuth } from '@/context/AuthContext';
-import { fetchMyProfile, fetchSkills } from '@/lib/api';
+import {
+  fetchMyProfile,
+  fetchSkills,
+  saveVolunteerMatch,
+} from '@/lib/api';
 import type { VolunteerProfile, SkillOption } from '@/types/profile';
 
 import {
@@ -52,7 +56,7 @@ interface EventUI {
   name: string;
   requiredSkills: string[];
   urgency: 'High' | 'Medium' | 'Low';
-  date: string;          // yyyy‑mm‑dd
+  date: string;          // yyyy-mm-dd
   city: string;
   state: string;
   zipcode: string;
@@ -69,7 +73,8 @@ const urgencyOptions: EventUI['urgency'][] = ['High', 'Medium', 'Low'];
 
 /* ───────────────────────── Component ─────────────────────── */
 export default function MatchingDashboard() {
-  const { token } = useAuth();
+  const { token, user } = useAuth(); // assumes useAuth exposes current user with .id
+  const [rawProfile, setRawProfile] = useState<any>(null);
 
   /* skills master list & id→name map */
   const [skillOpts, setSkillOpts] = useState<SkillOption[]>([]);
@@ -80,7 +85,7 @@ export default function MatchingDashboard() {
   const allSkills = useMemo(() => skillOpts.map((s) => s.name), [skillOpts]);
   const allSkillsCt = allSkills.length;
 
-  /* profile */
+  /* profile derived */
   const [profile, setProfile] = useState<ProfileDerived>({
     city: '', state: '', zipcode: '', availability: [],
     skillIds: [], skillNames: [], role: 'Volunteer',
@@ -90,6 +95,10 @@ export default function MatchingDashboard() {
   const [events, setEvents] = useState<EventUI[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
+
+  /* apply state */
+  const [applyingSet, setApplyingSet] = useState<Set<string>>(new Set());
+  const [appliedEventIds, setAppliedEventIds] = useState<Set<string>>(new Set());
 
   /* raw (editable) filters */
   const [rawDates,    setRawDates]    = useState<Date[]>([]);
@@ -126,6 +135,7 @@ export default function MatchingDashboard() {
 
         /* 2. profile (if logged in) */
         const prof = token ? await fetchMyProfile(token) : null;
+        setRawProfile(prof);
         const p = prof as VolunteerProfile | null;
 
         const availISO = (p?.availability ?? []).map((d) =>
@@ -299,19 +309,67 @@ export default function MatchingDashboard() {
       ? 'Any'
       : `${rawSkills.length} selected`;
 
+  /* ---------- apply to event ---------- */
+  const getVolunteerId = (): number | null => {
+    // prefer authenticated user object, fallback to profile payload
+    const raw = (user as any)?.id ?? rawProfile?.user_id ?? rawProfile?.id;
+    const num = Number(raw);
+    return isNaN(num) ? null : num;
+  };
+
+  const applyToEvent = async (e: EventUI) => {
+    if (!token) {
+      alert('You must be logged in to apply.');
+      return;
+    }
+    const volunteerId = getVolunteerId();
+    if (!volunteerId) {
+      console.error('Could not resolve volunteer ID from auth/profile', {
+        user,
+        rawProfile,
+      });
+      alert('Unable to determine your user identity. Try refreshing or re-logging in.');
+      return;
+    }
+
+    if (appliedEventIds.has(e.id)) {
+      return; // already applied
+    }
+
+    if (applyingSet.has(e.id)) {
+      return; // in-flight
+    }
+
+    setApplyingSet((prev) => new Set(prev).add(e.id));
+    try {
+      await saveVolunteerMatch({
+        eventId: Number(e.id),
+        volunteerId,
+      });
+      setAppliedEventIds((prev) => new Set(prev).add(e.id));
+      alert(`Successfully applied to ${e.name}`); // you can swap this for a toast
+    } catch (err) {
+      console.error('Failed to apply to event', err);
+      alert('Failed to apply. Please try again.'); 
+    } finally {
+      setApplyingSet((prev) => {
+        const copy = new Set(prev);
+        copy.delete(e.id);
+        return copy;
+      });
+    }
+  };
+
   if (loading || !profileLoaded) return <main className="p-6">Loading…</main>;
 
   /* ───────────────────────── UI ───────────────────────── */
   return (
     <main className="min-h-screen bg-[var(--color-ash_gray-500)] p-6">
       <h1 className="text-3xl font-bold mb-4 text-[var(--color-charcoal-100)]">
-        Event Matches
+        Event Matches
       </h1>
 
       {/* Filter panel */}
-      {/* (same markup as your original file) */}
-      {/* --------------------------------------------------- */}
-
       <div className="mb-6 bg-white shadow rounded-xl p-4 space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* Dates */}
@@ -389,7 +447,7 @@ export default function MatchingDashboard() {
           {/* Zip */}
           <div>
             <label className="block text-sm font-medium text-[var(--color-charcoal-300)]">
-              Zip Code
+              Zip Code
             </label>
             <input
               list="zip-list"
@@ -467,10 +525,10 @@ export default function MatchingDashboard() {
         {/* buttons */}
         <div className="flex justify-end gap-2">
           <Button size="sm" onClick={applyFilters}>
-            Apply Filters
+            Apply Filters
           </Button>
           <Button size="sm" variant="outline" onClick={clearAll}>
-            Clear Filters
+            Clear Filters
           </Button>
         </div>
       </div>
@@ -488,7 +546,7 @@ export default function MatchingDashboard() {
               </p>
               <p>
                 <strong>Location:</strong>{' '}
-                {`${e.city}, ${e.state}`}  {e.zipcode}
+                {`${e.city}, ${e.state}`}  {e.zipcode}
               </p>
               <p>
                 <strong>Urgency:</strong> {e.urgency}
@@ -499,9 +557,16 @@ export default function MatchingDashboard() {
               </p>
               <Button
                 className="mt-4 w-full"
-                onClick={() => alert(`Applied to ${e.name}`)}
+                onClick={() => applyToEvent(e)}
+                disabled={
+                  applyingSet.has(e.id) || appliedEventIds.has(e.id)
+                }
               >
-                Apply
+                {applyingSet.has(e.id)
+                  ? 'Applying…'
+                  : appliedEventIds.has(e.id)
+                  ? 'Applied'
+                  : 'Apply'}
               </Button>
             </CardContent>
           </Card>
