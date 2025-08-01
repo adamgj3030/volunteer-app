@@ -137,31 +137,44 @@ def seed_events(
         tuple[
             str,  # name
             str,  # description
-            str,  # address
-            str,  # city
+            str,  # address  (optional for 5-/6-tuples)
+            str,  # city     (optional for 5-/6-tuples)
             str,  # state_id
             str,  # urgency  ("low" | "medium" | "high")
             str,  # ISO date "YYYY-MM-DD"
+            list[int],  # optional extra skill_ids (6-tuple form)
         ]
-    ],
+    ] | Iterable[tuple],  # keep type checker happy
 ) -> Dict[str, int]:
     """
     Insert events and return a mapping {event_name: event_id}.
+
+    Accepted tuple shapes:
+      5-fields → (name, desc, state, urgency, iso)
+      6-fields → (name, desc, state, urgency, iso, skill_ids)
+      7-fields → (name, desc, addr, city, state, urgency, iso)
     """
     from datetime import datetime
     from app.models.events import Events, UrgencyEnum
 
     out: Dict[str, int] = {}
     with app.app_context():
-        for (
-            name,
-            desc,
-            addr,
-            city,
-            state_id,
-            urgency,
-            iso_date,
-        ) in items:
+        for tup in items:
+            # ── tolerant tuple unpacking ──────────────────────────────
+            if len(tup) == 5:
+                name, desc, state_id, urgency, iso_date = tup
+                addr, city, skill_ids = "", "", []
+            elif len(tup) == 6:
+                name, desc, state_id, urgency, iso_date, skill_ids = tup
+                addr, city = "", ""
+            elif len(tup) == 7:
+                name, desc, addr, city, state_id, urgency, iso_date = tup
+                skill_ids = []
+            else:
+                raise ValueError(
+                    f"seed_events: expected 5, 6, or 7 items, got {len(tup)} → {tup}"
+                )
+
             ev = Events(
                 name=name,
                 description=desc,
@@ -169,27 +182,27 @@ def seed_events(
                 city=city,
                 state_id=state_id,
                 urgency=UrgencyEnum[urgency],
-                date=datetime.fromisoformat(iso_date),
+                date=datetime.fromisoformat(
+                    iso_date if isinstance(iso_date, str) else iso_date.isoformat()
+                ),
             )
             db.session.add(ev)
-            db.session.flush()  # get auto PK
+            db.session.flush()  # assign PK
             out[name] = ev.event_id
+
+            # attach skills if provided (6-tuple form)
+            if skill_ids:
+                from app.models.eventToSkill import EventToSkill
+                for sid in skill_ids:
+                    db.session.add(EventToSkill(event_id=ev.event_id, skill_code=sid))
+
         db.session.commit()
     return out
 
 
-def seed_volunteer_history(
-    app: Flask,
-    rows: Iterable[tuple[int, int, str]],
-) -> None:
-    """
-    rows: (user_id, event_id, status_name)
-          status_name = "ASSIGNED" | "REGISTERED" | "COMPLETED"
-    """
-    from app.models.volunteerHistory import (
-        VolunteerHistory,
-        ParticipationStatusEnum,
-    )
+def seed_volunteer_history(app: Flask, rows: Iterable[tuple[int, int, str]]) -> None:
+    """rows: (user_id, event_id, status_name) where status_name ∈ ASSIGNED|REGISTERED|COMPLETED."""
+    from app.models.volunteerHistory import VolunteerHistory, ParticipationStatusEnum
 
     with app.app_context():
         for uid, eid, status in rows:
@@ -202,15 +215,10 @@ def seed_volunteer_history(
             )
         db.session.commit()
 
-# ---------------------------------------------------------------------------
-# NEW helper: promote a confirmed user to ADMIN for admin-side route tests
-# ---------------------------------------------------------------------------
-def promote_to_admin(app: Flask, user_id: int) -> None:
-    """
-    Update the given user’s role to ADMIN directly in the DB.
 
-    Tests call this after the user has already been created / confirmed.
-    """
+# ───────────────────── helper: elevate a user to ADMIN ───────────────────────
+def promote_to_admin(app: Flask, user_id: int) -> None:
+    """Flip role → ADMIN directly in the DB (used by admin-side tests)."""
     from app.models.userCredentials import User_Roles
 
     with app.app_context():
