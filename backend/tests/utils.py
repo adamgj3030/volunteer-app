@@ -133,47 +133,35 @@ def seed_skills(app: Flask, names: Iterable[str] | None = None) -> Dict[str, int
 # ---------------------------------------------------------------------------
 def seed_events(
     app: Flask,
-    items: Iterable[
-        tuple[
-            str,  # name
-            str,  # description
-            str,  # address  (optional for 5-/6-tuples)
-            str,  # city     (optional for 5-/6-tuples)
-            str,  # state_id
-            str,  # urgency  ("low" | "medium" | "high")
-            str,  # ISO date "YYYY-MM-DD"
-            list[int],  # optional extra skill_ids (6-tuple form)
-        ]
-    ] | Iterable[tuple],  # keep type checker happy
+    items: Iterable[tuple],
 ) -> Dict[str, int]:
     """
-    Insert events and return a mapping {event_name: event_id}.
+    Insert events and return {event_name: event_id}.
 
-    Accepted tuple shapes:
-      5-fields → (name, desc, state, urgency, iso)
-      6-fields → (name, desc, state, urgency, iso, skill_ids)
-      7-fields → (name, desc, addr, city, state, urgency, iso)
+    Accepts:
+      • 5-tuple → (name, desc, state, urgency, iso_date)
+      • 6-tuple → (name, desc, state, urgency, iso_date, skill_ids)
+      • 7-tuple → (name, desc, addr, city, state, urgency, iso_date)
     """
     from datetime import datetime
     from app.models.events import Events, UrgencyEnum
+    from app.models.eventToSkill import EventToSkill
 
     out: Dict[str, int] = {}
     with app.app_context():
         for tup in items:
-            # ── tolerant tuple unpacking ──────────────────────────────
-            if len(tup) == 5:
-                name, desc, state_id, urgency, iso_date = tup
-                addr, city, skill_ids = "", "", []
-            elif len(tup) == 6:
-                name, desc, state_id, urgency, iso_date, skill_ids = tup
+            # tolerant unpack
+            if len(tup) == 5:                     # simple
+                name, desc, state_id, urg, iso = tup
+                addr, city, skills = "", "", []
+            elif len(tup) == 6:                   # +skills
+                name, desc, state_id, urg, iso, skills = tup
                 addr, city = "", ""
-            elif len(tup) == 7:
-                name, desc, addr, city, state_id, urgency, iso_date = tup
-                skill_ids = []
+            elif len(tup) == 7:                   # full addr
+                name, desc, addr, city, state_id, urg, iso = tup
+                skills = []
             else:
-                raise ValueError(
-                    f"seed_events: expected 5, 6, or 7 items, got {len(tup)} → {tup}"
-                )
+                raise ValueError(f"seed_events: bad tuple {tup}")
 
             ev = Events(
                 name=name,
@@ -181,31 +169,36 @@ def seed_events(
                 address=addr,
                 city=city,
                 state_id=state_id,
-                urgency=UrgencyEnum[urgency],
-                date=datetime.fromisoformat(
-                    iso_date if isinstance(iso_date, str) else iso_date.isoformat()
-                ),
+                urgency=UrgencyEnum[urg],
+                date=datetime.fromisoformat(str(iso)),
             )
             db.session.add(ev)
-            db.session.flush()  # assign PK
+            db.session.flush()
             out[name] = ev.event_id
 
-            # attach skills if provided (6-tuple form)
-            if skill_ids:
-                from app.models.eventToSkill import EventToSkill
-                for sid in skill_ids:
-                    db.session.add(EventToSkill(event_id=ev.event_id, skill_code=sid))
+            for sid in skills:
+                db.session.add(EventToSkill(event_id=ev.event_id, skill_code=sid))
 
         db.session.commit()
     return out
 
 
-def seed_volunteer_history(app: Flask, rows: Iterable[tuple[int, int, str]]) -> None:
-    """rows: (user_id, event_id, status_name) where status_name ∈ ASSIGNED|REGISTERED|COMPLETED."""
+def seed_volunteer_history(app: Flask, rows: Iterable[tuple]) -> None:
+    """
+    Accepts 3-tuple (uid, eid, status) **or**
+             4-tuple (uid, eid, status, hours_vol) – extra value ignored.
+    """
     from app.models.volunteerHistory import VolunteerHistory, ParticipationStatusEnum
 
     with app.app_context():
-        for uid, eid, status in rows:
+        for row in rows:
+            if len(row) == 3:
+                uid, eid, status = row
+            elif len(row) == 4:
+                uid, eid, status, _ = row  # hours not used by route tests
+            else:
+                raise ValueError(f"seed_volunteer_history: bad tuple {row}")
+
             db.session.add(
                 VolunteerHistory(
                     user_id=uid,
@@ -227,3 +220,24 @@ def promote_to_admin(app: Flask, user_id: int) -> None:
             raise RuntimeError(f"promote_to_admin: user_id {user_id} not found")
         user.role = User_Roles.ADMIN
         db.session.commit()
+
+
+# ────────────────── patched auth factory (extra kw-args safe) ────────────────
+def create_confirmed_user_and_token(
+    client,
+    app: Flask,
+    *,
+    email="alice@example.org",
+    password="StrongPass!1",
+    role="volunteer",
+    skip_login=False,
+    full_name: str | None = None,   # ← NEW optional, silently ignored
+    **_,
+) -> str | None:
+    register(client, email=email, password=password, role=role)
+    confirm_email_via_token(client, app, email=email, role_requested=role)
+
+    # optional: attach name here later if models require
+    if skip_login:
+        return None
+    return login_get_token(client, email=email, password=password)
