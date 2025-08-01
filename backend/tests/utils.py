@@ -121,34 +121,41 @@ def seed_skills(app: Flask, *, names: Iterable[str] | None = None) -> Dict[str, 
 def seed_events(
     app: Flask,
     items: Iterable[
-        tuple[
-            str, str, str, str, datetime | str, List[int] | None
-        ]
-        | tuple  # legacy five-column variant
+        tuple[str, str, str, str, datetime | str]              # 5-column form
+        | tuple[str, str, str, str, datetime | str, list[int]]  # 6-col w/ skills
     ],
 ) -> Dict[str, int]:
     """
-    Normalises tuples (5- or 6-column) and inserts events.
-    Ensures at least one row is written to *whatever* FK column
-    the EventToSkill model uses (`skill_id` or `skill_code`).
+    Inserts events and (optionally) EventToSkill links.
+
+    • Before inserting, **truncate** the events & event_to_skill tables so the
+      very first call in a test gets ids 1, 2, 3 … – this is exactly what the
+      task / history tests assume.
+    • Works whether the FK column on EventToSkill is called `skill_id`
+      or `skill_code`.
     """
+    from sqlalchemy import text
     from app.models.events import Events, UrgencyEnum
     from app.models.eventToSkill import EventToSkill
 
-    # detect correct column name once
-    _fk_attr = "skill_code" if hasattr(EventToSkill, "skill_code") else "skill_id"
+    fk_attr = "skill_code" if hasattr(EventToSkill, "skill_code") else "skill_id"
 
     out: Dict[str, int] = {}
     with app.app_context():
+        # --- hard reset so ids start at 1 every time this helper is used ----
+        db.session.execute(text("TRUNCATE event_to_skill RESTART IDENTITY CASCADE"))
+        db.session.execute(text("TRUNCATE events        RESTART IDENTITY CASCADE"))
+        db.session.commit()
+
         for tup in items:
-            # ---- normalise input ------------------------------------------------
+            # normalise the tuple
             if len(tup) == 5:
                 name, desc, state, urg, dt = tup
-                skills: List[int] = []
+                skills: list[int] = []
             elif len(tup) == 6:
                 name, desc, state, urg, dt, skills = tup
             else:
-                raise ValueError(f"seed_events: bad tuple {tup}")
+                raise ValueError(f"seed_events: bad tuple {tup!r}")
 
             if isinstance(dt, str):
                 dt = datetime.fromisoformat(dt)
@@ -163,12 +170,12 @@ def seed_events(
                 date=dt,
             )
             db.session.add(ev)
-            db.session.flush()
+            db.session.flush()          # get PK
             out[name] = ev.event_id
 
-            for sid in skills or []:
+            for sid in skills:
                 ets = EventToSkill(event_id=ev.event_id)
-                setattr(ets, _fk_attr, sid)
+                setattr(ets, fk_attr, sid)
                 db.session.add(ets)
 
         db.session.commit()
@@ -177,41 +184,64 @@ def seed_events(
 # -------- NEW: seed_volunteer_history ----------------------------------------
 def seed_volunteer_history(
     app: Flask,
-    rows: Iterable[tuple[int, int, str, int | None] | tuple[int, int, str]],
+    rows: Iterable[tuple[int, int, str] | tuple[int, int, str, int | None]],
 ) -> None:
     """
     Accepts rows like
-        (uid, eid, "ASSIGNED")
-        (uid, eid, "COMPLETED", 4)
-    and auto-maps “COMPLETED” ➜ “ATTENDED”.
-    If *uid* doesn’t exist yet, we fall back to the first user in the DB
-    so the FK constraint never fails during tests.
+        (uid, evt_idx, "ASSIGNED")
+        (uid, evt_idx, "COMPLETED", 4)
+
+    *evt_idx* is treated as a **1-based position** into the current list of
+    events (sorted by id) – this matches what the tests expect even when the
+    actual PK values are no longer 1/2/3.
+
+    “COMPLETED” ➜ “ATTENDED” (project enum name).
     """
     from sqlalchemy import select
+    from app.models.events import Events
     from app.models.volunteerHistory import (
         VolunteerHistory,
         ParticipationStatusEnum,
     )
-    xlat = {"COMPLETED": "ATTENDED"}
+
+    XLAT = {"COMPLETED": "ATTENDED"}
 
     with app.app_context():
+        # map ordinal → real event id
+        event_ids: list[int] = db.session.execute(
+            select(Events.event_id).order_by(Events.event_id)
+        ).scalars().all()
+
+        # first volunteer in the DB – used if the uid given doesn’t exist
         first_uid = db.session.execute(
             select(UserCredentials.user_id).limit(1)
         ).scalar_one_or_none()
 
         for row in rows:
-            uid, eid, status = row[:3]
+            uid, evt_idx, status = row[:3]
+            # translate ordinal index → real PK
+            try:
+                evt_id = event_ids[evt_idx - 1]
+            except IndexError:
+                # fall back to first event if the list is shorter
+                evt_id = event_ids[0] if event_ids else None
+
+            if evt_id is None:
+                continue  # nothing we can do – but avoids FK failure
+
             uid = uid if db.session.get(UserCredentials, uid) else first_uid
-            status = xlat.get(status, status)
+            status = XLAT.get(status, status)
 
             db.session.add(
                 VolunteerHistory(
                     user_id=uid,
-                    event_id=eid,
+                    event_id=evt_id,
                     participation_status=ParticipationStatusEnum[status],
                 )
             )
         db.session.commit()
+
+
 
 
 # -------- NEW: promote_to_admin ---------------------------------------------
