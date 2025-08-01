@@ -1,48 +1,51 @@
-import React, { useState, useEffect } from "react";
+// src/pages/TaskList.tsx
+import React, { useEffect, useState } from "react";
 import {
   fetchVolunteerTasks,
   updateTaskStatus,
   type Task,
 } from "@/lib/api";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/context/AuthContext";      // ✅ useAuth gives { user, token }
+
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-/** How your app stores the logged-in user’s ID.
- *  Adjust as needed (e.g. from context, Redux, or cookie). */
-const currentVolunteerId = Number(localStorage.getItem("userId") || 0);
+/* ─────────────────────────────────────────────────────────────── */
 
 export default function TaskList() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const { user, token } = useAuth();                 // ← token may be undefined
+  const [tasks,   setTasks]   = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  /* ──────────────────────────────────────────────────────────────────
-     1) Load tasks belonging to this volunteer
-     ────────────────────────────────────────────────────────────────── */
+  /* 1️⃣  Load tasks that belong to the logged-in volunteer */
   useEffect(() => {
-    if (!currentVolunteerId) return; // no ID ➜ nothing to load
-    fetchVolunteerTasks(currentVolunteerId)
-      .then(setTasks)
-      .catch((err) => console.error("Failed to load tasks:", err));
-  }, []);
+  if (!user || !token) return;            // wait until BOTH exist
+  setLoading(true);
+  fetchVolunteerTasks(token)
+    .then(setTasks)
+    .catch((err) => console.error("Failed to load tasks:", err))
+    .finally(() => setLoading(false));
+}, [user, token]);          
 
-  /* ──────────────────────────────────────────────────────────────────
-     2) Register / cancel
-     ────────────────────────────────────────────────────────────────── */
+  /* 2️⃣  Register / cancel */
   const handleAction = async (task: Task) => {
-    let newStatus: Task["status"];
-    if (task.status === "assigned")      newStatus = "registered";
-    else if (task.status === "registered") newStatus = "assigned";
-    else return; // completed → no action
+    const next =
+      task.status === "assigned"
+        ? "registered"
+        : task.status === "registered"
+        ? "assigned"
+        : undefined;
+    if (!next) return;
 
     try {
-      await updateTaskStatus({
-        taskId:     task.id,
-        status:     newStatus,
-        volunteerId: currentVolunteerId,
-      });
+      await updateTaskStatus({ taskId: task.id, status: next }, token);
       setTasks((prev) =>
-        prev.map((t) =>
-          t.id === task.id ? { ...t, status: newStatus } : t
-        )
+        prev.map((t) => (t.id === task.id ? { ...t, status: next } : t))
       );
     } catch (err) {
       console.error("Failed to update task status:", err);
@@ -50,9 +53,12 @@ export default function TaskList() {
     }
   };
 
-  /* ──────────────────────────────────────────────────────────────────
-     3) UI
-     ────────────────────────────────────────────────────────────────── */
+  /* 3️⃣  UI states */
+  if (!user)   return <p className="text-center mt-10">Please log in to view your tasks.</p>;
+  if (loading) return <p className="text-center mt-10">Loading tasks…</p>;
+  if (tasks.length === 0) return <p className="text-center mt-10">No tasks yet.</p>;
+
+  /* 4️⃣  Render task cards */
   return (
     <div className="space-y-4">
       {tasks.map((t) => (
@@ -60,10 +66,12 @@ export default function TaskList() {
           <CardHeader>
             <CardTitle className="text-lg font-semibold">{t.title}</CardTitle>
           </CardHeader>
+
           <CardContent className="flex flex-col gap-2">
             <p><strong>Description:</strong> {t.description}</p>
             <p><strong>Assignee:</strong> {t.assignee}</p>
             <p><strong>Due:</strong> {new Date(t.date).toLocaleDateString()}</p>
+
             <p>
               <strong>Status:</strong>{" "}
               <span

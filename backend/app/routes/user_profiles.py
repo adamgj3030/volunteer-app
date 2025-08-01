@@ -80,7 +80,7 @@ def _apply_profile_changes(uid: int, payload: dict) -> tuple[UserProfiles, bool]
 @users_profiles_bp.get("/me")
 @jwt_required()
 def get_my_profile():
-    uid = get_jwt_identity()
+    _jwt_identity()
     prof = _load(uid)
     if not prof:
         # Return empty shell so UI can render form

@@ -103,7 +103,7 @@ export async function fetchSkills(): Promise<SkillOption[]> {
 // ---------------------------------------------------------------------------
 // Volunteer Profile --------------------------------------------------------
 // ---------------------------------------------------------------------------
-function authHeaders(token?: string) {
+function authHeaders(token?: string): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -218,7 +218,8 @@ export async function fetchSavedMatches(): Promise<TaskMatch[]> {
   return (await res.json()) as TaskMatch[];
 }
 
-//------- volunteer tasks (volunteer sided)
+// ───── volunteer tasks (volunteer-side) ────────────────────────────────────
+/* ------- volunteer tasks (volunteer-side) ------------------------- */
 export type Task = {
   id: string;
   title: string;
@@ -228,26 +229,27 @@ export type Task = {
   assignee: string;
 };
 
-/** Fetch tasks that belong to a single volunteer. */
-export async function fetchVolunteerTasks(
-  volunteerId: number
-): Promise<Task[]> {
-  const res = await fetch(buildUrl(`/tasks?volunteerId=${volunteerId}`));
+export async function fetchVolunteerTasks(token?: string): Promise<Task[]> {
+  const res = await fetch(buildUrl("/tasks"), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Failed to load volunteer tasks");
   return (await res.json()) as Task[];
 }
 
-/** Update this volunteer’s task status (register / cancel). */
-export async function updateTaskStatus(payload: {
-  taskId: string;
-  status: Task["status"];
-  volunteerId: number;
-}): Promise<void> {
+export async function updateTaskStatus(
+  payload: { taskId: string; status: Task["status"] },
+  token?: string
+): Promise<void> {
   const res = await fetch(buildUrl("/tasks/status"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload), // { taskId, status, volunteerId }
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to update task status");
 }
-//---------------------------------------------------------------------

@@ -1,102 +1,73 @@
-# app/routes/task_list.py
+# backend/app/routes/task.py
+from __future__ import annotations
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy import update
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
 from app.imports import db
-from app.models.volunteerHistory import (
-    VolunteerHistory,
-    ParticipationStatusEnum,
-)
-from app.models.events import Events
-from app.models.userCredentials import UserCredentials
+from app.models.volunteerHistory import VolunteerHistory, ParticipationStatusEnum
+from app.models.events           import Events
+from app.models.userCredentials  import UserCredentials
 
 task_list_bp = Blueprint("task_list", __name__, url_prefix="/tasks")
 
-# ── helpers ─────────────────────────────────────────────────────────────
-_DB_TO_JSON = {
-    ParticipationStatusEnum.ASSIGNED:   "assigned",
-    ParticipationStatusEnum.REGISTERED: "registered",
-    ParticipationStatusEnum.ATTENDED:   "completed",
-    ParticipationStatusEnum.CANCELLED:  "cancelled",
-    ParticipationStatusEnum.NO_SHOW:    "no_show",
-}
-_JSON_TO_DB = {v: k for k, v in _DB_TO_JSON.items()}
+# ───────────────────────────────────────── helpers ──────────────────────────
+def _task_row(vh: VolunteerHistory, ev: Events, assignee_email: str) -> dict:
+    """Return the JSON shape expected by the React TaskList."""
+    return {
+        "id":          str(vh.vol_history_id),
+        "title":       ev.name,
+        "description": ev.description,
+        "date":        ev.date.date().isoformat(),
+        "status":      vh.participation_status.name.lower(),  # assigned / registered / completed
+        "assignee":    assignee_email,
+    }
 
-def _tasks_from_db(volunteer_id: int) -> list[dict]:
+# ───────────────────────────────────────── routes ───────────────────────────
+@task_list_bp.get("")                 # GET /tasks
+@jwt_required()
+def list_my_tasks() -> tuple[list[dict], int]:
+    """Return every task that belongs to the *current* volunteer."""
+    uid = int(get_jwt_identity())     # ← cast JWT “sub” to int
+
     rows = (
         db.session.query(
-            VolunteerHistory.vol_history_id,
-            VolunteerHistory.participation_status,
-            Events.name,
-            Events.description,
-            Events.date,
+            VolunteerHistory,
+            Events,
             UserCredentials.email,
         )
-        .join(Events, Events.event_id == VolunteerHistory.event_id)
+        .join(Events,          Events.event_id        == VolunteerHistory.event_id)
         .join(UserCredentials, UserCredentials.user_id == VolunteerHistory.user_id)
-        .filter(VolunteerHistory.user_id == volunteer_id)
+        .filter(VolunteerHistory.user_id == uid)
+        .order_by(VolunteerHistory.vol_history_id)
         .all()
     )
 
-    return [
-        {
-            "id":        str(tid),
-            "title":     title,
-            "description": desc,
-            "date":      dt.date().isoformat(),
-            "status":    _DB_TO_JSON.get(stat, "assigned"),
-            "assignee":  email,
-        }
-        for tid, stat, title, desc, dt, email in rows
-    ]
-
-# ── routes ──────────────────────────────────────────────────────────────
-@task_list_bp.get("")
-def get_tasks():
-    """
-    GET /tasks?volunteerId=<int>
-    Returns only tasks for that volunteer.
-    """
-    uid = request.args.get("volunteerId", type=int)
-    if uid is None:
-        return jsonify({"error": "volunteerId required"}), 400
-
-    tasks = _tasks_from_db(uid)
-    tasks.sort(key=lambda t: t["date"], reverse=True)
-    return jsonify(tasks)
+    tasks = [_task_row(vh, ev, email) for vh, ev, email in rows]
+    return jsonify(tasks), 200
 
 
-@task_list_bp.post("/status")
-def update_task_status():
+@task_list_bp.post("/status")         # POST /tasks/status
+@jwt_required()
+def update_task_status() -> tuple[dict, int]:
     """
-    POST /tasks/status
-    Body JSON: { taskId: string, status: string, volunteerId: int }
-    Only the owner of the task may change its status.
+    Body: { "taskId": <vol_history_id>, "status": "assigned" | "registered" }
+    Only the owner can change their own task row.
     """
-    data       = request.get_json() or {}
+    uid = int(get_jwt_identity())     # ← same cast here
+    data = request.get_json(force=True) or {}
+
     task_id    = data.get("taskId")
     new_status = data.get("status")
-    uid_raw    = data.get("volunteerId")
-    uid        = int(uid_raw) if uid_raw is not None else None
 
-    if not all([task_id, new_status, uid]):
-        return jsonify({"error": "taskId, status, volunteerId required"}), 400
-    if new_status not in _JSON_TO_DB:
-        return jsonify({"error": "invalid status"}), 400
-    if not task_id.isdigit():
+    if not task_id or new_status not in {"assigned", "registered"}:
+        return jsonify({"error": "taskId and valid status required"}), 400
+
+    vh: VolunteerHistory | None = db.session.get(VolunteerHistory, int(task_id))
+    if not vh or vh.user_id != uid:
         return jsonify({"error": "Task not found"}), 404
 
-    vh_id = int(task_id)
-    stmt  = (
-        update(VolunteerHistory)
-        .where(
-            VolunteerHistory.vol_history_id == vh_id,
-            VolunteerHistory.user_id == uid,               # ownership check
-        )
-        .values(participation_status=_JSON_TO_DB[new_status])
-    )
-    result = db.session.execute(stmt)
-    if result.rowcount:
-        db.session.commit()
-        return jsonify({"taskId": task_id, "status": new_status}), 200
-    return jsonify({"error": "Task not found or forbidden"}), 404
+    vh.participation_status = ParticipationStatusEnum[new_status.upper()]
+    db.session.commit()
+
+    return jsonify({"taskId": task_id, "status": new_status}), 200
