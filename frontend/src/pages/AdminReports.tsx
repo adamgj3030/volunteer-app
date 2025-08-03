@@ -1,119 +1,236 @@
 /*
  *  frontend/src/pages/AdminReports.tsx
  *  ───────────────────────────────────
- *  Vertical list layout — centered container (max-w-4xl).
- *  Colour palette: Ash-Gray background, white cards, Cambridge-Blue buttons.
+ *  • Centred container (max-w-4xl)
+ *  • Ash-Gray bg, white cards, Cambridge-Blue buttons
+ *  • CSV + PDF export (PDF fixed with official autoTable call)
+ *
+ *  External deps (once): npm i jspdf jspdf-autotable papaparse
  */
 
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import Papa from 'papaparse';
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 
-/* ─────────── Types ─────────── */
+/* ---------- Types ---------- */
 interface VolunteerEvent {
-  eventName: string; description: string; location: string;
-  requiredSkills: string[]; urgency: string; eventDate: string; status: string;
+  eventName: string;
+  description: string;
+  location: string;
+  requiredSkills: string[];
+  urgency: string;
+  eventDate: string;
+  status: string;
 }
-interface VolunteerRow { email:string; name:string|null; events:VolunteerEvent[] }
+interface VolunteerRow {
+  email: string;
+  name: string | null;
+  events: VolunteerEvent[];
+}
 interface EventRow {
-  eventName:string; description:string; location:string;
-  requiredSkills:string[]; urgency:string; eventDate:string;
-  volunteers:{ email:string; name:string|null; status:string }[];
+  eventName: string;
+  description: string;
+  location: string;
+  requiredSkills: string[];
+  urgency: string;
+  eventDate: string;
+  volunteers: { email: string; name: string | null; status: string }[];
 }
 
-/* ─────────── Helpers ─────────── */
+/* ---------- Helpers ---------- */
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-const dl = (b:Blob,f:string)=>{const u=URL.createObjectURL(b);const a=Object.assign(document.createElement('a'),{href:u,download:f});document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);};
 
-const vRows = (vol:VolunteerRow[]) => vol.flatMap(v=>v.events.length? v.events.map(ev=>({VolunteerEmail:v.email,VolunteerName:v.name??'',EventName:ev.eventName,EventDate:ev.eventDate,Urgency:ev.urgency,Status:ev.status,RequiredSkills:ev.requiredSkills.join('; '),Location:ev.location})): [{VolunteerEmail:v.email,VolunteerName:v.name??'',EventName:'(none)',EventDate:'',Urgency:'',Status:'',RequiredSkills:'',Location:''}]);
-const eRows = (evs:EventRow[]) => evs.flatMap(ev=>ev.volunteers.length? ev.volunteers.map(v=>({EventName:ev.eventName,EventDate:ev.eventDate,Urgency:ev.urgency,Location:ev.location,RequiredSkills:ev.requiredSkills.join('; '),VolunteerEmail:v.email,VolunteerName:v.name??'',Status:v.status})): [{EventName:ev.eventName,EventDate:ev.eventDate,Urgency:ev.urgency,Location:ev.location,RequiredSkills:ev.requiredSkills.join('; '),VolunteerEmail:'(none)',VolunteerName:'',Status:''}]);
+const downloadCSV = (csv: string, filename: string) => {
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+};
 
-/* ─────────── Component ─────────── */
+const vRows = (vol: VolunteerRow[]) =>
+  vol.flatMap((v) =>
+    v.events.length
+      ? v.events.map((ev) => ({
+          VolunteerEmail: v.email,
+          VolunteerName: v.name ?? '',
+          EventName: ev.eventName,
+          EventDate: ev.eventDate,
+          Urgency: ev.urgency,
+          Status: ev.status,
+          RequiredSkills: ev.requiredSkills.join('; '),
+          Location: ev.location,
+        }))
+      : [{
+          VolunteerEmail: v.email,
+          VolunteerName: v.name ?? '',
+          EventName: '(none)',
+          EventDate: '',
+          Urgency: '',
+          Status: '',
+          RequiredSkills: '',
+          Location: '',
+        }],
+  );
+
+const eRows = (evs: EventRow[]) =>
+  evs.flatMap((ev) =>
+    ev.volunteers.length
+      ? ev.volunteers.map((v) => ({
+          EventName: ev.eventName,
+          EventDate: ev.eventDate,
+          Urgency: ev.urgency,
+          Location: ev.location,
+          RequiredSkills: ev.requiredSkills.join('; '),
+          VolunteerEmail: v.email,
+          VolunteerName: v.name ?? '',
+          Status: v.status,
+        }))
+      : [{
+          EventName: ev.eventName,
+          EventDate: ev.eventDate,
+          Urgency: ev.urgency,
+          Location: ev.location,
+          RequiredSkills: ev.requiredSkills.join('; '),
+          VolunteerEmail: '(none)',
+          VolunteerName: '',
+          Status: '',
+        }],
+  );
+
+/* ---------- Component ---------- */
 export default function AdminReports() {
   const { token } = useAuth();
 
-  const [volData,setVolData]=useState<VolunteerRow[]|null>(null);
-  const [loading,setLoading]=useState(false);
-  const [err,setErr]=useState<string|null>(null);
-  const [mode,setMode]=useState<'volunteers'|'events'>('volunteers');
+  const [volData, setVolData] = useState<VolunteerRow[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [mode, setMode] = useState<'volunteers' | 'events'>('volunteers');
 
   /* fetch once */
-  useEffect(()=>{let m=true;(async()=>{
-    setLoading(true);
-    try{
-      const h:Record<string,string>={Accept:'application/json'}; if(token)h.Authorization=`Bearer ${token}`;
-      const r=await fetch(`${API_BASE}/volunteer/history`,{headers:h});
-      if(!r.ok)throw new Error(`HTTP ${r.status}`);
-      const js:VolunteerRow[]=await r.json();
-      if(m)setVolData(js);
-    }catch(e:any){if(m){setVolData([]);setErr(e.message??'Fetch failed');}}
-    finally{if(m)setLoading(false);}
-  })();return()=>{m=false};},[token]);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const headers: Record<string, string> = { Accept: 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
 
-  /* derive events view */
-  const evtData:EventRow[]=useMemo(()=>{
-    if(!volData)return[];
-    const map:Record<string,EventRow>={};
-    volData.forEach(v=>v.events.forEach(ev=>{
-      const k=`${ev.eventName}|${ev.eventDate}`;
-      const row=map[k]??(map[k]={eventName:ev.eventName,description:ev.description,location:ev.location,requiredSkills:ev.requiredSkills,urgency:ev.urgency,eventDate:ev.eventDate,volunteers:[]});
-      row.volunteers.push({email:v.email,name:v.name,status:ev.status});
-    }));
+        const res = await fetch(`${API_BASE}/volunteer/history`, { headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const json: VolunteerRow[] = await res.json();
+        if (mounted) setVolData(json);
+      } catch (e: any) {
+        if (mounted) {
+          setVolData([]);
+          setErr(e.message ?? 'Fetch failed');
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [token]);
+
+  /* derive event-centric view */
+  const evtData: EventRow[] = useMemo(() => {
+    if (!volData) return [];
+    const map: Record<string, EventRow> = {};
+    volData.forEach((v) =>
+      v.events.forEach((ev) => {
+        const key = `${ev.eventName}|${ev.eventDate}`;
+        const row =
+          map[key] ??
+          (map[key] = {
+            eventName: ev.eventName,
+            description: ev.description,
+            location: ev.location,
+            requiredSkills: ev.requiredSkills,
+            urgency: ev.urgency,
+            eventDate: ev.eventDate,
+            volunteers: [],
+          });
+        row.volunteers.push({ email: v.email, name: v.name, status: ev.status });
+      }),
+    );
     return Object.values(map);
-  },[volData]);
+  }, [volData]);
 
-  /* exports */
-  const doCSV=useCallback(()=>{
-    if(mode==='volunteers'&&volData?.length) dl(new Blob([Papa.unparse(vRows(volData))],{type:'text/csv'}),'volunteer_report.csv');
-    if(mode==='events'&&evtData.length)      dl(new Blob([Papa.unparse(eRows(evtData))],{type:'text/csv'}),'event_report.csv');
-  },[mode,volData,evtData]);
+  /* export handlers */
+  const doCSV = useCallback(() => {
+    if (mode === 'volunteers' && volData?.length) {
+      downloadCSV(Papa.unparse(vRows(volData)), 'volunteer_report.csv');
+    }
+    if (mode === 'events' && evtData.length) {
+      downloadCSV(Papa.unparse(eRows(evtData)), 'event_report.csv');
+    }
+  }, [mode, volData, evtData]);
 
-  const doPDF=useCallback(()=>{
-    const rows=mode==='volunteers'?vRows(volData??[]):eRows(evtData); if(!rows.length)return;
-    const pdf=new jsPDF({orientation:'landscape'});
-    const head=Object.keys(rows[0]); const body=rows.map(r=>head.map(k=>r[k as keyof typeof r]));
+  const doPDF = useCallback(() => {
+    const rows = mode === 'volunteers' ? vRows(volData ?? []) : eRows(evtData);
+    if (!rows.length) return;
+
+    const pdf = new jsPDF({ orientation: 'landscape' });
+    const header = Object.keys(rows[0]);
+    const body = rows.map((r) => header.map((k) => r[k as keyof typeof r]));
+
     pdf.setFontSize(14);
-    pdf.text(mode==='volunteers'?'Volunteer Participation Report':'Event Assignment Report',14,18);
-    (pdf as any).autoTable({startY:24,head:[head],body,styles:{fontSize:8}});
-    dl(pdf.output('blob'),mode==='volunteers'?'volunteer_report.pdf':'event_report.pdf');
-  },[mode,volData,evtData]);
+    pdf.text(
+      mode === 'volunteers'
+        ? 'Volunteer Participation Report'
+        : 'Event Assignment Report',
+      14,
+      18,
+    );
+
+    autoTable(pdf, { startY: 24, head: [header], body, styles: { fontSize: 8 } });
+
+    const filename =
+      mode === 'volunteers' ? 'volunteer_report.pdf' : 'event_report.pdf';
+
+    pdf.save(filename);            // reliable download
+  }, [mode, volData, evtData]);
 
   /* card renders */
-  const VolCard=(v:VolunteerRow)=>(
+  const VolCard = (v: VolunteerRow) => (
     <Card key={v.email} className="mb-6 bg-white shadow-lg rounded-2xl">
-      <CardHeader><CardTitle>{v.name||'(no name)'} — {v.email}</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>{v.name || '(no name)'} — {v.email}</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-2">
-        {v.events.length===0&&<p>No participation yet.</p>}
-        {v.events.map(ev=>(
-          <div key={ev.eventName+ev.eventDate} className="border-t pt-2">
+        {v.events.length === 0 && <p>No participation yet.</p>}
+        {v.events.map((ev) => (
+          <div key={ev.eventName + ev.eventDate} className="border-t pt-2">
             <p className="font-medium">{ev.eventName}</p>
             <p className="text-sm">{ev.eventDate} — {ev.location}</p>
             <p className="text-sm">Urgency: {ev.urgency} | Status: {ev.status}</p>
-            <p className="text-sm">Skills: {ev.requiredSkills.join(', ')||'—'}</p>
+            <p className="text-sm">Skills: {ev.requiredSkills.join(', ') || '—'}</p>
           </div>
         ))}
       </CardContent>
     </Card>
   );
 
-  const EvtCard=(e:EventRow)=>(
-    <Card key={e.eventName+e.eventDate} className="mb-6 bg-white shadow-lg rounded-2xl">
-      <CardHeader><CardTitle>{e.eventName} — {e.eventDate}</CardTitle></CardHeader>
+  const EvtCard = (e: EventRow) => (
+    <Card key={e.eventName + e.eventDate} className="mb-6 bg-white shadow-lg rounded-2xl">
+      <CardHeader>
+        <CardTitle>{e.eventName} — {e.eventDate}</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-2">
         <p className="text-sm">{e.location} | Urgency: {e.urgency}</p>
-        <p className="text-sm">Skills: {e.requiredSkills.join(', ')||'—'}</p>
-        {e.volunteers.length===0
-          ?<p>No volunteers assigned.</p>
-          :e.volunteers.map(v=>(
+        <p className="text-sm">Skills: {e.requiredSkills.join(', ') || '—'}</p>
+        {e.volunteers.length === 0
+          ? <p>No volunteers assigned.</p>
+          : e.volunteers.map((v) => (
               <p key={v.email} className="border-t pt-1 text-sm">
-                {v.name||'(no name)'} — {v.email} ({v.status})
+                {v.name || '(no name)'} — {v.email} ({v.status})
               </p>
             ))}
       </CardContent>
@@ -123,7 +240,7 @@ export default function AdminReports() {
   /* ---------- UI ---------- */
   return (
     <main className="min-h-screen bg-[var(--color-ash_gray-500)] p-6">
-      {/* centered container */}
+      {/* centred container */}
       <div className="max-w-4xl mx-auto">
         {/* header */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
@@ -134,39 +251,49 @@ export default function AdminReports() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="ghost"
-              className={mode==='volunteers'
-                ? 'bg-[var(--color-cambridge_blue-500)] text-white'
-                : 'text-[var(--color-charcoal-400)] hover:bg-[var(--color-ash_gray-700)]'}
-              onClick={()=>setMode('volunteers')}
+              className={
+                mode === 'volunteers'
+                  ? 'bg-[var(--color-cambridge_blue-500)] text-white'
+                  : 'text-[var(--color-charcoal-400)] hover:bg-[var(--color-ash_gray-700)]'
+              }
+              onClick={() => setMode('volunteers')}
             >
               Volunteers
             </Button>
             <Button
               variant="ghost"
-              className={mode==='events'
-                ? 'bg-[var(--color-cambridge_blue-500)] text-white'
-                : 'text-[var(--color-charcoal-400)] hover:bg-[var(--color-ash_gray-700)]'}
-              onClick={()=>setMode('events')}
+              className={
+                mode === 'events'
+                  ? 'bg-[var(--color-cambridge_blue-500)] text-white'
+                  : 'text-[var(--color-charcoal-400)] hover:bg-[var(--color-ash_gray-700)]'
+              }
+              onClick={() => setMode('events')}
             >
               Events
             </Button>
 
-            <Button onClick={doCSV} disabled={loading||!!err}>CSV</Button>
-            <Button onClick={doPDF} disabled={loading||!!err}>PDF</Button>
+            <Button onClick={doCSV} disabled={loading || !!err}>
+              CSV
+            </Button>
+            <Button onClick={doPDF} disabled={loading || !!err}>
+              PDF
+            </Button>
           </div>
         </div>
 
         {/* body */}
         {loading && <p>Loading…</p>}
-        {err&&!loading&&<p className="text-sm text-[var(--color-cambridge_blue-500)]">{err}</p>}
+        {err && !loading && (
+          <p className="text-sm text-[var(--color-cambridge_blue-500)]">{err}</p>
+        )}
 
-        {mode==='volunteers' && volData?.map(VolCard)}
-        {mode==='events'     && evtData  .map(EvtCard)}
+        {mode === 'volunteers' && volData?.map(VolCard)}
+        {mode === 'events' && evtData.map(EvtCard)}
 
-        {!loading&&!err&&(
-          (mode==='volunteers' && volData?.length===0) ||
-          (mode==='events'     && evtData.length===0)
-        )&&<p>No data found.</p>}
+        {!loading && !err && (
+          (mode === 'volunteers' && volData?.length === 0) ||
+          (mode === 'events' && evtData.length === 0)
+        ) && <p>No data found.</p>}
       </div>
     </main>
   );
