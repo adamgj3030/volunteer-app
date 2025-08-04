@@ -10,7 +10,7 @@ from flask_jwt_extended import JWTManager
 
 
 migrate = Migrate()
-socketio = SocketIO()  # No config yet
+# socketio = SocketIO()  # No config yet
 jwt = JWTManager()
 
 
@@ -102,4 +102,4 @@ def create_app(config_object="app.config.DevConfig"):
 
     return app
 
-__all__ = ["create_app", "db"]
+__all__ = ["create_app", "db", "socketio"]

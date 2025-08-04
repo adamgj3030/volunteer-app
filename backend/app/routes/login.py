@@ -3,6 +3,8 @@ from werkzeug.security import check_password_hash
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt
 
 from app.imports import db
+from app.models.events import Events
+from app.models.volunteerHistory import VolunteerHistory
 from app.models.userCredentials import UserCredentials, User_Roles
 
 from datetime import datetime
@@ -56,6 +58,25 @@ def login():
     access_token = create_access_token(identity=user.user_id)
 
     payload = user_to_dict(user)
+
+    # if volunteer
+    if user.role is User_Roles.VOLUNTEER:
+        from app.routes.events import _serialize
+        assignments = (
+            db.session.query(VolunteerHistory)
+            .filter_by(user_id=user.user_id)
+            .join(Events, VolunteerHistory.event_id == Events.event_id)
+            .all()
+        )
+
+        for assignment in assignments:
+            event = assignment.event 
+            socketio.emit("event_assigned", {
+                **_serialize(event),
+                "user_id": user.user
+                "message": f"🔔 You have been assigned to event '{event.name}'!",
+            }, room=str(user.user_id))
+
 
     # Suggested redirect path based on role --------------------------
     if user.role is User_Roles.VOLUNTEER:

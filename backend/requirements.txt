@@ -11,7 +11,7 @@ PyJWT
 # testing dependencies
 pytest
 pytest-flask
-flask-socketio 
+flask-socketio
 eventlet
 APScheduler
 pytest-cov # pytest code coverage

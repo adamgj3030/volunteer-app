@@ -21,7 +21,10 @@ from sqlalchemy import asc, desc
 
 import enum
 
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room
+from flask_jwt_extended import decode_token
+
+socketio = SocketIO()
 
 
 __all__ = [
@@ -44,5 +47,8 @@ __all__ = [
     "asc",
     "desc",
     "SocketIO",
+    "socketio",
     "emit",
+    "join_room",
+    "decode_token",
 ]

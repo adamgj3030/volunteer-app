@@ -1,4 +1,5 @@
-from app import create_app, socketio
+from app import create_app
+from app.imports import socketio
 
 app = create_app()
 

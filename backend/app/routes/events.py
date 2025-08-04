@@ -4,9 +4,9 @@ from __future__ import annotations
 from datetime import datetime
 
 from flask import Blueprint, jsonify, request
-import socketio
 
-from app.imports import db
+
+from app.imports import db, socketio 
 from app.models.events import Events, UrgencyEnum
 
 events_bp = Blueprint("events", __name__)
@@ -80,11 +80,20 @@ def create_event():
     )
     db.session.add(new_row)
     db.session.commit()
+    
+    assigned_user_id = data.get("assigned_user_id")  # make sure frontend sends this
+
+    if not assigned_user_id:
+        return jsonify({"error": "Missing assigned_user_id"}), 400
+
+
     socketio.emit(
         "event_assigned",
-        {**_serialize(new_row),
-        "message": f"🆕 New event '{new_row.name}' has been created!"},
-        broadcast=True
+        {
+            **_serialize(new_row),
+            "message": f"🆕 New event '{new_row.name}' has been created!",
+        },
+        to=str(assigned_user_id)  # 🎯 emit to specific user’s socket room
     )
 
 
@@ -113,7 +122,7 @@ def update_event(event_id: int):
         "event_update",
         {**_serialize(row),
         "message": f"📅 Event '{row.name}' has been updated."},
-        broadcast=True
+        # broadcast=True
     )
 
     return jsonify({"ok": True}), 200
