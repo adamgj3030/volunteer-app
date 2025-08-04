@@ -76,6 +76,11 @@ export default function EventForm() {
     })();
   }, []);
 
+
+  const formatDate = (dt: string | Date) =>
+    new Date(dt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+
+
   /* helper: id → name */
   const skillDict = useMemo(
     () => Object.fromEntries(skillOpts.map(o => [o.id, o.name])),
@@ -368,7 +373,7 @@ export default function EventForm() {
                         <strong>{e.name}</strong>
                         <br />
                         <span className="text-sm">
-                          ({new Date(e.date).toLocaleString()}) &mdash; {`${e.city}, ${e.state_id}`}
+                          ({formatDate(e.date)}) &mdash; {`${e.city}, ${e.state_id}`}
                         </span>
                         <div className="text-sm mt-1">
                           <span className="font-medium">Skills:</span>{" "}
