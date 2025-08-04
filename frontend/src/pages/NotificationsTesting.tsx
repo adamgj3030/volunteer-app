@@ -28,23 +28,23 @@ export default function NotificationsTesting() {
 
   return (
     <div className="p-4 space-y-2">
-<button
-  onClick={() => {
-    console.log("Clicked: Sending 'event_assigned'");
-    socket?.emit("event_assigned", { name: "Test Volunteer Event" });
-  }}
->
-  Trigger Assignment
-</button>
+      <button
+        onClick={() => {
+          console.log("Clicked: Sending 'event_assigned'");
+          socket?.emit("event_assigned", { name: "Test Volunteer Event" });
+        }}
+      >
+        Trigger Assignment
+      </button>
 
-<button
-  onClick={() => {
-    console.log("Clicked: Sending 'frontend_test'");
-    socket?.emit("frontend_test", {});
-  }}
->
-  Frontend Assignment
-</button>
-</div>
-  );
+      <button
+        onClick={() => {
+          console.log("Clicked: Sending 'frontend_test'");
+          socket?.emit("frontend_test", { name: "Frontend Testing"});
+        }}
+      >
+        Frontend Assignment
+      </button>
+      </div>
+        );
 }
