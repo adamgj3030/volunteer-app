@@ -3,12 +3,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import List
-
+from sqlalchemy import cast, Date
 from flask import Blueprint, jsonify, request
-
+from datetime import datetime, time
 from app.imports import db
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.models.events import Events, UrgencyEnum
 from app.models.skill import Skill
+from app.models.userCredentials import UserCredentials
 
 # ───────────────────────── socket.io: safe import ─────────────────────────
 try:
@@ -102,11 +104,12 @@ def create_event():
     db.session.commit()
 
     socketio.emit(
-        "event_assigned",
+        "event_created",
         {**_serialize(new_row),
          "message": f"🆕 New event '{new_row.name}' has been created!"},
         broadcast=True,
     )
+    print("✅ Event created:", new_row.event_id)
 
     return jsonify({"event_id": new_row.event_id}), 201
 
@@ -140,9 +143,45 @@ def update_event(event_id: int):
 
     socketio.emit(
         "event_update",
-        {**_serialize(row),
-         "message": f"📅 Event '{row.name}' has been updated."},
+        {
+            **_serialize(row),
+            "message": f"📅 Event '{row.name}' has been updated."
+        },
         broadcast=True,
     )
+    print(" UPDATED AHH")
 
     return jsonify({"ok": True}), 200
+
+
+from datetime import datetime, time
+
+@events_bp.get("/upcoming/assigned")
+@jwt_required()
+def list_upcoming_events_for_user():
+    user_id = get_jwt_identity()
+    user = UserCredentials.query.get_or_404(user_id)
+    profile = user.profile
+
+    if not profile:
+        return jsonify([]), 200
+
+    skill_ids = profile.get_skill_ids()
+
+    # Get just the local date
+    today = datetime.now().date()
+
+    rows = (
+        Events.query
+        .join(Events.skills)
+        .filter(Skill.skill_id.in_(skill_ids))
+        .filter(cast(Events.date, Date) == today)
+        .distinct()
+        .all()
+    )
+
+    return jsonify([_serialize(e) for e in rows]), 200
+
+
+
+

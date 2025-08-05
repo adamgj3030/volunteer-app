@@ -33,11 +33,11 @@ export const createEvent = (payload: EventPayload) =>
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  }).then(json<{ event_id: number }>())
+  }).then(json<{ event_id: number }>)
 
 export const updateEvent = (id: number, payload: EventPayload) =>
   fetch(`${BASE}/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  }).then(json<{ ok: boolean }>())
+  }).then(json<{ ok: boolean }>)
