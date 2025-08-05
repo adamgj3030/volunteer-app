@@ -159,6 +159,20 @@ def save_volunteer_match():
             {"uid": int(vid), "eid": int(eid)},
         )
         db.session.commit()
+        
+        try:
+            from app.sockets import socketio
+            socketio.emit(
+                "event_assigned",
+                {
+                    "eventId": eid,
+                    "volunteerId": vid,
+                    "message": f"🎉 You’ve been assigned to event #{eid}!",
+                },
+                to=str(vid),  # emit to the volunteer’s socket room
+            )
+        except Exception as e:
+            print("⚠️ Socket emit failed:", str(e))
 
     _SAVED_MATCHES.append({"eventId": eid, "volunteerId": vid})
     return jsonify({"saved": {"eventId": eid, "volunteerId": vid}}), 201

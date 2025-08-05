@@ -39,7 +39,7 @@ function App() {
           <Route path="/admin/history" element={<ProtectedRoute allow={['ADMIN']} ><VolunteerHistory /></ProtectedRoute>} />
           <Route path="/admin/event/creation" element={<ProtectedRoute allow={['ADMIN']} ><EventForm /></ProtectedRoute>} />
           <Route path="/admin/matching" element={<ProtectedRoute allow={['ADMIN']} ><VolunteerMatchingPage /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute allow={[]} ><NotificationsTesting /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute allow={["ADMIN"]} ><NotificationsTesting /></ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute allow={['ADMIN']}><AdminReports /></ProtectedRoute>} />
         </Routes>
       </main>

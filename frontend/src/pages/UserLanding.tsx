@@ -1,8 +1,90 @@
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Notify } from "@/components/Notifications";
+import axios from "axios";
+const db_url = import.meta.env.VITE_DEVELOPMENT_DB_URL;
+
+export const listUpcomingAssigned = async () => {
+  
+  const raw = localStorage.getItem("volunteerapp.auth");
+
+  if (!raw) {
+    throw new Error("User not authenticated — no token found.");
+  }
+
+  const parsed = JSON.parse(raw);
+  const token = parsed.token;
+
+  if (!token) {
+    throw new Error("Malformed auth data — token missing.");
+  }
+
+  try {
+    const res = await axios.get(`${db_url}/events/upcoming/assigned`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return res.data;
+  } catch (err: any) {
+    console.error("Axios error fetching assigned events:", err);
+    throw new Error(err.response?.data?.message || "Failed to fetch assigned events");
+  }
+};
+
+function isToday(isoDate: string): boolean {
+  const eventDate = new Date(isoDate);
+  const today = new Date();
+
+  return (
+    eventDate.getFullYear() === today.getFullYear() &&
+    eventDate.getMonth() === today.getMonth() &&
+    eventDate.getDate() === today.getDate()
+  );
+}
+
 
 export default function UserLanding() {
+
+    useEffect(() => {
+  async function checkTodayEvents() {
+    try {
+      const events = await listUpcomingAssigned();
+      let found = false;
+
+      for (const event of events) {
+        if (isToday(event.date)) {
+          found = true;
+          Notify({
+            title: "🎯 You have an event today!",
+            description: `Event: ${event.name}`,
+            variant: "success",
+          });
+        }
+      }
+
+      if (!found) {
+        console.log("✅ No events today");
+      }
+    } catch (err) {
+      console.error("Error fetching assigned events:", err);
+      Notify({
+        title: "Error",
+        description: "Could not fetch today's events.",
+        variant: "error",
+      });
+    }
+  }
+
+  checkTodayEvents();
+}, []);
+
+
+
+
   return (
     <div className="bg-ash_gray-500">
       <div className="min-h-screen bg-cambridge_blue-50 px-4 py-10">

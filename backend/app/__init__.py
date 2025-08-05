@@ -7,12 +7,11 @@ from app.models.volunteerHistory import VolunteerHistory
 from sqlalchemy import and_
 from app.utils.mailer import init_mail
 from flask_jwt_extended import JWTManager
-
+from flask_cors import CORS
 
 migrate = Migrate()
-socketio = SocketIO()  # No config yet
+socketio = SocketIO(cors_allowed_origins="*")  # No config yet
 jwt = JWTManager()
-
 
 def create_app(config_object="app.config.DevConfig"):
     app = Flask(__name__)
@@ -24,6 +23,7 @@ def create_app(config_object="app.config.DevConfig"):
     db.init_app(app)
     migrate.init_app(app, db)
     socketio.init_app(app, cors_allowed_origins="*")  # ✅ CORS properly applied here
+    from app import sockets  # ✅ Import after socketio.init_app
     CORS(
       app,
       origins= app.config["FRONTEND_ORIGIN"],
@@ -84,7 +84,7 @@ def create_app(config_object="app.config.DevConfig"):
             ).all()
 
             for event in upcoming_events:
-                assignments = db.session.query(VolunteerHistory).filter_by(event_id=event.event_id).all()
+                assignments = db.session.query(VolunteerHistory).filter_by(event_id=event.event_id, participation_status='ASSIGNED').all()
                 for assignment in assignments:
                     socketio.emit(
                         "event_reminder",
@@ -93,7 +93,8 @@ def create_app(config_object="app.config.DevConfig"):
                             "event_id": event.event_id,
                             "name": event.name,
                             "message": f"⏰ Reminder: Your event '{event.name}' starts in less than 1 hour!"
-                        }
+                        },
+                        to=str(assignment.user_id)  # 🔥 Send only to the specific user room
                     )
 
     scheduler = BackgroundScheduler()
